@@ -127,6 +127,17 @@ add_dependencies(MCppServer zlib nlohmann_json cppcodec openssl)
 # Add the include directories for the dependencies
 target_include_directories(MCppServer PRIVATE src ${libnbtplusplus_SOURCE_DIR}/include ${libnbtplusplus_BINARY_DIR} ${ssl_SOURCE_DIR}/include ${cppcodec_SOURCE_DIR} thirdparty)
 
+# Define the resource directory
+set(RESOURCE_DIR "${CMAKE_SOURCE_DIR}/resources")
+
+# Ensure the resource directory exists
+if(NOT EXISTS "${RESOURCE_DIR}")
+    message(FATAL_ERROR "Resource directory not found: ${RESOURCE_DIR}")
+endif()
+
+# Define the destination directory
+set(RESOURCE_DESTINATION "$<TARGET_FILE_DIR:MCppServer>/resources")
+
 if(WIN32)
     set(OPENSSL_DLL_DIR "${CMAKE_BINARY_DIR}/_deps/openssl-cmake-build/openssl-prefix/src/openssl/usr/local/bin")
     target_link_libraries(MCppServer PRIVATE ws2_32 nlohmann_json::nlohmann_json nbt++ zlibstatic  ssl crypto crypt32)
@@ -138,7 +149,15 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${OPENSSL_DLL_DIR}/libssl-3-x64.dll"
             "${CMAKE_BINARY_DIR}/"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${RESOURCE_DIR}"
+            "${RESOURCE_DESTINATION}"
     )
 else ()
     target_link_libraries(MCppServer PRIVATE nlohmann_json::nlohmann_json nbt++ zlibstatic ssl crypto)
+    add_custom_command(TARGET MCppServer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${RESOURCE_DIR}"
+            "${RESOURCE_DESTINATION}"
+    )
 endif()
