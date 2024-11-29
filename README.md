@@ -69,7 +69,7 @@ Just put the world folder of your Vanilla Minecraft world in the root Directory 
 ## 🛠️ Installation & Building
 
 ### 📋 Prerequisites
-- **C++17 Compiler:** Ensure you have a modern C++ compiler installed (e.g., GCC, Clang).
+- **C++20 Compiler:** Ensure you have a modern C++ compiler installed (e.g., GCC, Clang). On Windows you need MingW.
 - **CMake:** Version 3.14 or higher.
 - **Git:** To clone the repository.
 
