@@ -102,6 +102,7 @@ After a successful build, execute the server binary:
 ```bash
 ./MCppServer
    ```
+**Important**: Make sure the resources folder is in the same directory as the executable.
 
 ## 📦 Data Sources
 MCpp utilizes data from the [PrismarineJS](https://github.com/PrismarineJS/minecraft-data) Minecraft Data repository to ensure accurate and up-to-date game mechanics and data.
