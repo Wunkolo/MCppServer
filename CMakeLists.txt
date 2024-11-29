@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.14)
 project(MCppServer)
 
 add_executable(MCppServer src/main.cpp
