@@ -1,5 +1,8 @@
+<div align="center">
+    
 # MCpp Server
 
+</div>
 MCpp is a high-performance Minecraft server developed entirely in C++. Designed for speed, efficiency, and extensive customization, MCpp Server aims to provide a seamless and enjoyable experience for players while maintaining full compatibility with the latest Minecraft features.
 
 ## 🚀 Features
@@ -60,7 +63,7 @@ MCpp is a high-performance Minecraft server developed entirely in C++. Designed 
     - [ ] Minecart
 
 ## 🌍 Use Pre-Generated World
-Just put the world folder of your Vanilla Minecraft world in the root Directory and it will be loaded when the server starts.
+Just put the world folder of your Vanilla Minecraft world in the Directory where the server executable is and it will be loaded when the server starts.
 
 ## ⚠️ Important Notes
 - **Linux Compatibility:** Mojang authentication is currently not functional on Linux, and the Linux version has not been thoroughly tested. Users may encounter issues when running MCpp on Linux systems.
