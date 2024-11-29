@@ -1,6 +1,7 @@
 <div align="center">
     
 # MCpp Server
+Fast and super efficient C++ 1.21.1 Minecraft Server. Compatible with Java Clients.
 
 </div>
 MCpp is a high-performance Minecraft server developed entirely in C++. Designed for speed, efficiency, and extensive customization, MCpp Server aims to provide a seamless and enjoyable experience for players while maintaining full compatibility with the latest Minecraft features.
