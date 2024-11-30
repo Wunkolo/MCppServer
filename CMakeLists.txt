@@ -69,6 +69,10 @@ add_executable(MCppServer src/main.cpp
         src/networking/packet_ids.h
         src/networking/clientbound_packets.cpp
         src/networking/clientbound_packets.h
+        src/world/world_border.cpp
+        src/world/world_border.h
+        src/world/world_time.cpp
+        src/world/world_time.h
 )
 
 # Include FetchContent module
@@ -135,8 +139,6 @@ if(NOT EXISTS "${RESOURCE_DIR}")
     message(FATAL_ERROR "Resource directory not found: ${RESOURCE_DIR}")
 endif()
 
-# Define the destination directory
-set(RESOURCE_DESTINATION "$<TARGET_FILE_DIR:MCppServer>/resources")
 
 if(WIN32)
     set(OPENSSL_DLL_DIR "${CMAKE_BINARY_DIR}/_deps/openssl-cmake-build/openssl-prefix/src/openssl/usr/local/bin")
@@ -151,7 +153,7 @@ if(WIN32)
             "${CMAKE_BINARY_DIR}/"
             COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${RESOURCE_DIR}"
-            "${RESOURCE_DESTINATION}"
+            "${CMAKE_BINARY_DIR}/resources"
     )
 else ()
     target_link_libraries(MCppServer PRIVATE nlohmann_json::nlohmann_json nbt++ zlibstatic ssl crypto)

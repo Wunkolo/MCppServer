@@ -6,9 +6,47 @@
 #include <thread>
 
 #include "commands/CommandBuilder.h"
+#include "networking/clientbound_packets.h"
 #include "server/query_server.h"
 #include "server/rcon_server.h"
 #include "world/world.h"
+
+void tickingSystem() {
+    using namespace std::chrono;
+    auto tickCount = 0;
+
+    // Calculate the duration between ticks based on ticksPerSecond
+    double ticksPerSecond = static_cast<double>(serverConfig.ticksPerSecond);
+    double millisecondsPerTick = 1000.0 / ticksPerSecond;
+
+    // Convert to chrono duration with floating-point precision
+    auto tickInterval = duration<double, std::milli>(millisecondsPerTick);
+
+    auto nextTick = steady_clock::now() + tickInterval;
+
+    while (true) {
+        // Wait until the next tick
+        std::this_thread::sleep_until(nextTick);
+        if (tickCount % 20 == 0) {
+            // Every second
+
+            // Increment world time
+            worldTime.tick();
+
+            // Notify all connected clients about the updated time
+            {
+                std::lock_guard lock(connectedClientsMutex);
+                for (auto &existingClient: connectedClients | std::views::values) {
+                    sendTimeUpdatePacket(*existingClient);
+                }
+            }
+        }
+
+        // Schedule the next tick
+        nextTick += tickInterval;
+        tickCount++;
+    }
+}
 
 void runServer() {
     auto startTime = std::chrono::system_clock::now();
@@ -117,6 +155,9 @@ void runServer() {
 
     // Detach the thread to allow it to run independently
     consoleThread.detach();
+
+    std::thread tickThread(tickingSystem);
+    tickThread.detach();
 
     while (true) {
         sockaddr_in clientAddr{};

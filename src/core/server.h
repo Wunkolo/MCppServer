@@ -9,6 +9,8 @@
 #include "world/flatworld.h"
 #include "server/rcon_server.h"
 #include "utils/thread_pool.h"
+#include "world/world_border.h"
+#include "world/world_time.h"
 
 #define PRINT_DEBUG 1
 
@@ -61,5 +63,9 @@ inline std::mutex connectedClientsMutex;
 inline thread_pool threadPool(std::thread::hardware_concurrency());
 
 inline std::unique_ptr<RCONServer> rconServer;
+
+// TODO: Create a world class to hold all world data
+inline WorldBorder worldBorder;
+inline WorldTime worldTime;
 
 #endif // SERVER_H

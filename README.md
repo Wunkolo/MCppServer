@@ -52,10 +52,10 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
     - [x] Entity Spawning
     - [x] World Loading
     - [x] Chunk Generation
-    - [ ] World Time
+    - [x] World Time
     - [ ] Scoreboard
     - [ ] World Saving
-    - [ ] World Borders
+    - [x] World Border
 - Player
     - [x] Player Skins
     - [x] Client brand

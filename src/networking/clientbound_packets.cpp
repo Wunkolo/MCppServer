@@ -1120,3 +1120,51 @@ void sendServerPluginMessages(ClientConnection & client) {
 
     sendPacket(client, packetData);
 }
+
+void sendInitializeWorldBorder(ClientConnection& client, const WorldBorder& border) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, INITIALIZE_WORLD_BORDER);
+
+    // Bound To: X (Double) - Center X
+    writeDouble(packet, border.centerX);
+
+    // Bound To: Z (Double) - Center Z
+    writeDouble(packet, border.centerZ);
+
+    // Old Diameter (Double) - Set to current size (no resizing)
+    writeDouble(packet, border.size);
+
+    // New Diameter (Double) - Set to current size (no resizing)
+    writeDouble(packet, border.size);
+
+    // Speed (VarLong) - 0 (no resizing)
+    writeVarLong(packet, 0);
+
+    // Portal Teleport Boundary (VarInt)
+    writeVarInt(packet, static_cast<int32_t>(border.portalTeleportBoundary));
+
+    // Warning Blocks (VarInt)
+    writeVarInt(packet, border.warningBlocks);
+
+    // Warning Time (VarInt)
+    writeVarInt(packet, border.warningTime);
+
+    // Send the packet
+    sendPacket(client, packet);
+}
+
+void sendTimeUpdatePacket(ClientConnection& client) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, UPDATE_TIME);
+
+    // World Age (Long) - Not changed by server commands
+    int64_t currentWorldAge = worldTime.getWorldAge();
+    writeLong(packet, currentWorldAge);
+
+    // Time of Day (Long) - Based on world time
+    int64_t currentTimeOfDay = worldTime.getTimeOfDay();
+    writeLong(packet, currentTimeOfDay);
+
+    // Send the packet
+    sendPacket(client, packet);
+}

@@ -36,6 +36,7 @@ void loadConfig() {
         serverConfig.enableQuery = false;
         serverConfig.queryPort = 25565;
         serverConfig.enableRcon = false;
+        serverConfig.ticksPerSecond = 20;
         logMessage("Failed to open config file: " + configFilePath, LOG_ERROR);
         return;
     }
@@ -141,5 +142,36 @@ void loadConfig() {
             serverConfig.enableRcon = false;
         }
     }
+
+    // ********** Load World Border Settings **********
+    if (jsonConfig.contains("world_border")) {
+        const auto& wb = jsonConfig["world_border"];
+
+        // Load World Border Size
+        if (wb.contains("world_border_size")) {
+            serverConfig.worldBorder.size = wb["world_border_size"].get<double>();
+        } else {
+            logMessage("Invalid or missing 'world_border_size' in config. Using default values.", LOG_WARNING);
+        }
+
+        // Load World Border Center
+        if (wb.contains("world_border_center") && wb["world_border_center"].is_array() && wb["world_border_center"].size() == 2) {
+            serverConfig.worldBorder.center[0] = wb["world_border_center"][0].get<double>();
+            serverConfig.worldBorder.center[1] = wb["world_border_center"][1].get<double>();
+        } else {
+            logMessage("Invalid or missing 'world_border_center' in config. Using default values.", LOG_WARNING);
+        }
+
+        // Load Warning Time
+        serverConfig.worldBorder.warningTime = wb.value("world_border_warning_time", 15);
+
+        // Load Warning Blocks
+        serverConfig.worldBorder.warningBlocks = wb.value("world_border_warning_blocks", 5);
+    } else {
+        logMessage("Missing 'world_border' section in config. Using default World Border settings.", LOG_WARNING);
+    }
+    // ********** End of World Border Settings **********
+
+    serverConfig.ticksPerSecond = jsonConfig.value("ticks_per_second", 20);
 }
 

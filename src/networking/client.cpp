@@ -1319,6 +1319,10 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
 
     };
 
+    // Initialize the world border
+    worldBorder.initialize(serverConfig.worldBorder);
+    sendInitializeWorldBorder(client, worldBorder);
+
     // Send current chunk to the player
     sendCurrentChunkToPlayer(client, centerChunkX, centerChunkZ);
 

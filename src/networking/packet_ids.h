@@ -38,6 +38,8 @@
 #define SET_EQUIPMENT 0x5B
 #define SYSTEM_CHAT_MESSAGE 0x6C
 #define TELEPORT_ENTITY 0x70
+#define INITIALIZE_WORLD_BORDER 0x25
+#define UPDATE_TIME 0x64
 
 // Client -> Server Packets
 #define STATUS_REQUEST 0x00

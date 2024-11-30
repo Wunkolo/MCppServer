@@ -5,6 +5,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <array>
 #include <string>
 #include <thread>
 #include <vector>
@@ -21,6 +22,13 @@ struct ResourcePack {
 struct ServerLink {
     std::string label;
     std::string url;
+};
+
+struct WorldBorderConfig {
+    double size = 60000000.0; // Diameter
+    std::array<double, 2> center = {0.0, 0.0};             // Center X and Z
+    int32_t warningTime = 15;                              // In seconds
+    int32_t warningBlocks = 5;                             // In meters
 };
 
 struct ServerConfig {
@@ -50,6 +58,8 @@ struct ServerConfig {
     std::string rconPassword;
     int rconPort;
     bool broadcastRconToOps;
+    WorldBorderConfig worldBorder;
+    int ticksPerSecond;
 };
 
 extern ServerConfig serverConfig;

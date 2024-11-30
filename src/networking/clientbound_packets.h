@@ -6,6 +6,7 @@
 #include "enums/enums.h"
 #include "registries/registry_manager.h"
 
+struct WorldBorder;
 struct EquipmentSlot;
 struct MetadataEntry;
 enum class GameEvent : uint8_t;
@@ -51,5 +52,7 @@ void sendKnownPacksPacket(ClientConnection& client);
 void sendSetCompressionPacket(ClientConnection& client, int32_t threshold);
 void sendServerLinksPacket(ClientConnection & client);
 void sendServerPluginMessages(ClientConnection & client);
+void sendInitializeWorldBorder(ClientConnection& client, const WorldBorder& border);
+void sendTimeUpdatePacket(ClientConnection& client);
 
 #endif //CLIENTBOUND_PACKETS_H
