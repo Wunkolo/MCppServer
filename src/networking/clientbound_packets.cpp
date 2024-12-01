@@ -1121,6 +1121,44 @@ void sendServerPluginMessages(ClientConnection & client) {
     sendPacket(client, packetData);
 }
 
+void sendReInitializeWorldBorder(double x, double z, double size, int64_t speed, int32_t warningBlocks, int32_t warningTime) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, INITIALIZE_WORLD_BORDER);
+    double oldDiameter = worldBorder.size;
+    worldBorder.updateCenter(x, z);
+    worldBorder.updateSize(size);
+    worldBorder.updateWarningDistance(warningBlocks);
+    worldBorder.updateWarningTime(warningTime);
+    worldBorder.reInitialize();
+
+    // Bound To: X (Double) - Center X
+    writeDouble(packet, x);
+
+    // Bound To: Z (Double) - Center Z
+    writeDouble(packet, z);
+
+    // Old Diameter (Double) - Set to current size (no resizing)
+    writeDouble(packet, oldDiameter);
+
+    // New Diameter (Double) - Set to current size (no resizing)
+    writeDouble(packet, size);
+
+    // Speed (VarLong) - 0 (no resizing)
+    writeVarLong(packet, speed);
+
+    // Portal Teleport Boundary (VarInt)
+    writeVarInt(packet, static_cast<int32_t>(worldBorder.portalTeleportBoundary));
+
+    // Warning Blocks (VarInt)
+    writeVarInt(packet, warningBlocks);
+
+    // Warning Time (VarInt)
+    writeVarInt(packet, warningTime);
+
+    // Send the packet
+    broadcastToOthers(packet);
+}
+
 void sendInitializeWorldBorder(ClientConnection& client, const WorldBorder& border) {
     std::vector<uint8_t> packet;
     writeVarInt(packet, INITIALIZE_WORLD_BORDER);
@@ -1167,4 +1205,74 @@ void sendTimeUpdatePacket(ClientConnection& client) {
 
     // Send the packet
     sendPacket(client, packet);
+}
+
+void sendSetBorderCenter(double x, double z) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_BORDER_CENTER);
+    worldBorder.updateCenter(x, z);
+
+    // Center X (Double)
+    writeDouble(packet, worldBorder.centerX);
+
+    // Center Z (Double)
+    writeDouble(packet, worldBorder.centerZ);
+
+    // Send the packet to all clients
+    broadcastToOthers(packet);
+}
+
+void sendSetBorderLerpSize(double newDiameter, int64_t speed) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_BORDER_LERP_SIZE);
+    double oldDiameter = worldBorder.size;
+    worldBorder.updateSize(newDiameter);
+
+    // Old Diameter (Double)
+    writeDouble(packet, oldDiameter);
+
+    // New Diameter (Double)
+    writeDouble(packet, worldBorder.size);
+
+    // Speed (VarLong)
+    writeVarLong(packet, speed);
+
+    // Send the packet to all clients
+    broadcastToOthers(packet);
+}
+
+void sendSetBorderSize(double newDiameter) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_BORDER_SIZE);
+    worldBorder.updateSize(newDiameter);
+
+    // New Diameter (Double)
+    writeDouble(packet, worldBorder.size);
+
+    // Send the packet to all clients
+    broadcastToOthers(packet);
+}
+
+void sendSetBorderWarningDelay(int32_t warningTime) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_BORDER_WARNING_DELAY);
+    worldBorder.updateWarningTime(warningTime);
+
+    // Warning Time (VarInt)
+    writeVarInt(packet, worldBorder.warningTime);
+
+    // Send the packet to all clients
+    broadcastToOthers(packet);
+}
+
+void sendSetBorderWarningDistance(int32_t warningBlocks) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_BORDER_WARNING_DISTANCE);
+    worldBorder.updateWarningDistance(warningBlocks);
+
+    // Warning Blocks (VarInt)
+    writeVarInt(packet, worldBorder.warningBlocks);
+
+    // Send the packet to all clients
+    broadcastToOthers(packet);
 }

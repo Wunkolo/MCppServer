@@ -27,11 +27,10 @@ void tickingSystem() {
     while (true) {
         // Wait until the next tick
         std::this_thread::sleep_until(nextTick);
+        // Increment world time
+        worldTime.tick();
         if (tickCount % 20 == 0) {
             // Every second
-
-            // Increment world time
-            worldTime.tick();
 
             // Notify all connected clients about the updated time
             {

@@ -4,8 +4,8 @@
 
 void WorldTime::tick() {
     std::lock_guard lock(timeMutex);
-    worldAge += 20;
-    timeOfDay = (timeOfDay + 20) % 24000; // Loop around after a full day
+    worldAge += 1;
+    timeOfDay = (timeOfDay + 1) % 24000; // Loop around after a full day
 }
 
 int64_t WorldTime::getWorldAge() {
@@ -16,6 +16,11 @@ int64_t WorldTime::getWorldAge() {
 int64_t WorldTime::getTimeOfDay() {
     std::lock_guard lock(timeMutex);
     return timeOfDay;
+}
+
+int64_t WorldTime::getDays() {
+    std::lock_guard lock(timeMutex);
+    return worldAge / 24000;
 }
 
 void WorldTime::setTimeOfDay(int64_t newTime) {

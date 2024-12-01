@@ -989,7 +989,7 @@ void handleCommand(ClientConnection & client, const std::shared_ptr<Player>& pla
     CommandParser parser(globalCommandGraph, chatOutput);
 
     // Parse and execute the command
-    bool success = parser.parseAndExecute(client, *player, command);
+    bool success = parser.parseAndExecute(*player, command);
 }
 
 void handleConsoleCommand(const std::string & command) {

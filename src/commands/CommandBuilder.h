@@ -16,6 +16,25 @@ enum class NodeType {
     ARGUMENT
 };
 
+struct IntRange {
+    int min;
+    int max;
+};
+
+struct FloatRange {
+    float min;
+    float max;
+};
+
+struct DoubleRange {
+    double min;
+    double max;
+};
+
+// Add other ranges if necessary
+
+using ArgumentRange = std::variant<std::monostate, IntRange, FloatRange, DoubleRange>;
+
 // Type alias for command handlers
 using CommandHandler = std::function<void(const Player*, const std::vector<std::string>&, std::function<void(const std::string&, bool)>)>;
 
@@ -67,11 +86,10 @@ public:
 class ArgumentNode : public CommandNode {
 public:
     uint8_t parserProperties;
-    int minValue;
-    int maxValue;
+    ArgumentRange range;
 
     ArgumentNode(const std::string& argumentName, int parserId)
-        : CommandNode(NodeType::ARGUMENT, argumentName, parserId), parserProperties(0), minValue(0), maxValue(0) {
+        : CommandNode(NodeType::ARGUMENT, argumentName, parserId), parserProperties(0) {
     }
 
     void setParserProperties(uint8_t properties) {
@@ -79,9 +97,17 @@ public:
     }
 
     void setIntegerRange(int min, int max) {
-        minValue = min;
-        maxValue = max;
+        range = IntRange{min, max};
     }
+
+    void setFloatRange(float min, float max) {
+        range = FloatRange{min, max};
+    }
+
+    void setDoubleRange(double min, double max) {
+        range = DoubleRange{min, max};
+    }
+
 
 };
 
@@ -177,6 +203,50 @@ public:
         return *this;
     }
 
+    CommandBuilder& setFloatRange(float min, float max) {
+        if (nodeStack.empty()) {
+            logMessage("No node to set range on", LOG_ERROR);
+            return *this;
+        }
+
+        auto lastNode = nodeStack.back();
+        if (lastNode->type != NodeType::ARGUMENT) {
+            logMessage("Last node is not an argument", LOG_ERROR);
+            return *this;
+        }
+
+        auto argNode = std::dynamic_pointer_cast<ArgumentNode>(lastNode);
+        if (!argNode) {
+            logMessage("Failed to cast to ArgumentNode", LOG_ERROR);
+            return *this;
+        }
+
+        argNode->setFloatRange(min, max);
+        return *this;
+    }
+
+    CommandBuilder& setDoubleRange(double min, double max) {
+        if (nodeStack.empty()) {
+            logMessage("No node to set range on", LOG_ERROR);
+            return *this;
+        }
+
+        auto lastNode = nodeStack.back();
+        if (lastNode->type != NodeType::ARGUMENT) {
+            logMessage("Last node is not an argument", LOG_ERROR);
+            return *this;
+        }
+
+        auto argNode = std::dynamic_pointer_cast<ArgumentNode>(lastNode);
+        if (!argNode) {
+            logMessage("Failed to cast to ArgumentNode", LOG_ERROR);
+            return *this;
+        }
+
+        argNode->setDoubleRange(min, max);
+        return *this;
+    }
+
     // Associate a handler with the current node (must be executable)
     CommandBuilder& handler(const CommandHandler &h) {
         if (nodeStack.empty()) {
@@ -269,15 +339,89 @@ public:
                 writeString(serializedNodes, node->name);
             }
 
-            // Parser ID
+            // Parser ID and Properties
             if (node->type == NodeType::ARGUMENT) {
                 writeVarInt(serializedNodes, node->parserId);
-                if (node->parserId == 6) { // minecraft:entity
-                    if (auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node)) {
+
+                switch (node->parserId) {
+                     case 1: { // brigadier:float
+                    auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+                    if (argNode && std::holds_alternative<FloatRange>(argNode->range)) {
+                        FloatRange fr = std::get<FloatRange>(argNode->range);
+                        uint8_t flags = 0;
+                        if (fr.min != 0.0f) flags |= 0x01;
+                        if (fr.max != 0.0f) flags |= 0x02;
+                        writeByte(serializedNodes, flags);
+                        if (flags & 0x01) {
+                            float min = fr.min;
+                            writeFloat(serializedNodes, min);
+                        }
+                        if (flags & 0x02) {
+                            float max = fr.max;
+                            writeFloat(serializedNodes, max);
+                        }
+                    }
+                    break;
+                }
+                case 2: { // brigadier:double
+                    auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+                    if (argNode && std::holds_alternative<DoubleRange>(argNode->range)) {
+                        DoubleRange dr = std::get<DoubleRange>(argNode->range);
+                        uint8_t flags = 0;
+                        if (dr.min != 0.0) flags |= 0x01;
+                        if (dr.max != 0.0) flags |= 0x02;
+                        writeByte(serializedNodes, flags);
+                        if (flags & 0x01) {
+                            double min = dr.min;
+                            writeDouble(serializedNodes, min);
+                        }
+                        if (flags & 0x02) {
+                            double max = dr.max;
+                            writeDouble(serializedNodes, max);
+                        }
+                    }
+                    break;
+                }
+                case 3: { // brigadier:integer
+                    auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+                    if (argNode && std::holds_alternative<IntRange>(argNode->range)) {
+                        IntRange ir = std::get<IntRange>(argNode->range);
+                        uint8_t flags = 0;
+                        if (ir.min != 0) flags |= 0x01;
+                        if (ir.max != 0) flags |= 0x02;
+                        writeByte(serializedNodes, flags);
+                        if (flags & 0x01) {
+                            writeInt(serializedNodes, ir.min);
+                        }
+                        if (flags & 0x02) {
+                            writeInt(serializedNodes, ir.max);
+                        }
+                    }
+                    break;
+                }
+                case 6: { // minecraft:entity
+                    // Write parser properties (flags)
+                    auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+                    if (argNode) {
                         writeByte(serializedNodes, argNode->parserProperties);
                     }
+                    break;
+                }
+                case 42: { // minecraft:time
+                    // Write parser properties (Min)
+                    auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+                    if (argNode) {
+                        writeInt(serializedNodes, argNode->range.index() == 0 ? 0 :
+                            (std::holds_alternative<IntRange>(argNode->range) ? std::get<IntRange>(argNode->range).min :
+                            (std::holds_alternative<DoubleRange>(argNode->range) ? static_cast<int>(std::get<DoubleRange>(argNode->range).min) : 0)));
+                    }
+                    break;
                 }
                 // TODO: Serialize other parser properties
+                default:
+                    // If there are no additional properties, do nothing
+                    break;
+                }
             }
         }
 
@@ -295,7 +439,7 @@ class CommandParser {
 public:
     CommandParser(const std::shared_ptr<RootNode> &rootNode, const std::function<void(const std::string&, bool)> &outputFunc) : root(rootNode), sendOutput(outputFunc) {}
 
-    bool parseAndExecute(ClientConnection& client, const Player& player, const std::string& inputCommand) const {
+    bool parseAndExecute(const Player& player, const std::string& inputCommand) const {
         // Tokenize the input command
         std::vector<std::string> tokens = tokenize(inputCommand);
         if (tokens.empty()) {
@@ -323,9 +467,7 @@ public:
                 if (child->type == NodeType::ARGUMENT) {
                     // Argument node, accept any token
                     // Validate based on parserId and properties
-                    std::string parsedArg;
-                    if (validateArgument(child, token, parsedArg)) {
-                        args.push_back(parsedArg);
+                    if (validateArgument(child, tokens, tokenIndex, args, &player)) {
                         currentNode = child;
                         matched = true;
                         break;
@@ -382,9 +524,7 @@ public:
                 }
                 if (child->type == NodeType::ARGUMENT) {
                     // Argument node, accept any token
-                    std::string parsedArg;
-                    if (validateArgument(child, token, parsedArg)) {
-                        args.push_back(parsedArg);
+                    if (validateArgument(child, tokens, tokenIndex, args, nullptr)) {
                         currentNode = child;
                         matched = true;
                         break;
@@ -452,40 +592,184 @@ private:
     }
 
     // Helper function to validate and parse an argument based on parserId and properties
-    static bool validateArgument(const std::shared_ptr<CommandNode>& node, const std::string& token, std::string& parsedArg) {
-        if (node->parserId == 6) { // minecraft:entity
-            auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
-            if (!argNode) return false;
-
-            parsedArg = token;
-            return true;
+    static bool validateArgument(const std::shared_ptr<CommandNode>& node, const std::vector<std::string>& tokens, size_t& currentTokenIndex, std::vector<std::string>& parsedArgs, const Player* player) {
+        if (node->type != NodeType::ARGUMENT) {
+            // Not an argument node
+            return false;
         }
-        if (node->parserId == 3) { // brigadier:integer
-            try {
-                int value = std::stoi(token);
-                auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
-                if (!argNode) return false;
 
-                // Check min and max
-                if (value < argNode->minValue || value > argNode->maxValue) {
+        auto argNode = std::dynamic_pointer_cast<ArgumentNode>(node);
+        if (!argNode) {
+            // Failed to cast to ArgumentNode
+            return false;
+        }
+
+        int parserId = argNode->parserId;
+        switch (parserId) {
+            case 1: { // brigadier:float
+                try {
+                    const std::string& token = tokens[currentTokenIndex];
+                    float value = std::stof(token);
+
+                    // Check min and max
+                    if (std::holds_alternative<FloatRange>(argNode->range)) {
+                        FloatRange fr = std::get<FloatRange>(argNode->range);
+                        if (fr.min != 0.0f && value < fr.min) return false;
+                        if (fr.max != 0.0f && value > fr.max) return false;
+                    }
+
+                    parsedArgs.emplace_back(std::to_string(value));
+                    return true;
+                }
+                catch (std::invalid_argument&) {
+                    return false;
+                }
+                catch (std::out_of_range&) {
+                    return false;
+                }
+            }
+
+            case 2: { // brigadier:double
+                double value = 0.0;
+                try {
+                    const std::string& token = tokens[currentTokenIndex];
+                    value = std::stod(token);
+
+                    // Check range if set
+                    if (std::holds_alternative<DoubleRange>(argNode->range)) {
+                        DoubleRange dr = std::get<DoubleRange>(argNode->range);
+                        if (dr.min != 0.0 && value < dr.min) return false;
+                        if (dr.max != 0.0 && value > dr.max) return false;
+                    }
+
+                    parsedArgs.emplace_back(std::to_string(value));
+                    return true;
+                }
+                catch (std::invalid_argument&) {
+                    return false;
+                }
+                catch (std::out_of_range&) {
+                    return false;
+                }
+            }
+            case 3: { // brigadier:integer
+                try {
+                    const std::string& token = tokens[currentTokenIndex];
+                    int value = std::stoi(token);
+
+                    // Check min and max
+                    if (std::holds_alternative<IntRange>(argNode->range)) {
+                        IntRange ir = std::get<IntRange>(argNode->range);
+                        if (ir.min != 0.0f && (value < ir.min)) return false;
+                        if (ir.max != 0.0f && (value > ir.max)) return false;
+                    }
+
+                    parsedArgs.emplace_back(std::to_string(value));
+                    return true;
+                }
+                catch (std::invalid_argument&) {
+                    return false;
+                }
+                catch (std::out_of_range&) {
+                    return false;
+                }
+            }
+            case 6: { // minecraft:entity
+                if (currentTokenIndex >= tokens.size()) return false;
+                const std::string& token = tokens[currentTokenIndex];
+                if (token.empty()) return false;
+
+                parsedArgs.emplace_back(token);
+                return true;
+            }
+
+            case 11: { // minecraft:vec2
+                if (currentTokenIndex + 1 >= tokens.size()) return false;
+                std::string tokenX = tokens[currentTokenIndex];
+                std::string tokenZ = tokens[currentTokenIndex + 1];
+                float x = 0.0f, z = 0.0f;
+
+                try {
+                    // tokenX contains ~
+                    if (tokenX.find("~") != std::string::npos) {
+                        // Remove the ~ character
+                        tokenX = tokenX.substr(1);
+                        // If the token is empty, the position is the player's current position
+                        if (tokenX.empty()) {
+                            if (player) {
+                                x = player->position.x;
+                            } else {
+                                x = 0.0f;
+                            }
+                        } else {
+                            x = std::stof(tokenX);
+                            if (player) {
+                                x += player->position.x;
+                            }
+                        }
+                    }
+                    else {
+                        x = std::stof(tokenX);
+                    }
+                    if (tokenZ.find("~") != std::string::npos) {
+                        // Remove the ~ character
+                        tokenZ = tokenZ.substr(1);
+                        // If the token is empty, the position is the player's current position
+                        if (tokenZ.empty()) {
+                            if (player) {
+                                z = player->position.z;
+                            } else {
+                                z = 0.0f;
+                            }
+                        } else {
+                            z = std::stof(tokenZ);
+                            if (player) {
+                                z += player->position.z;
+                            }
+                        }
+                    }
+                    else {
+                        z = std::stof(tokenZ);
+                    }
+                }
+                catch (const std::exception&) {
                     return false;
                 }
 
-                parsedArg = std::to_string(value);
+                // Check range if set
+                if (std::holds_alternative<FloatRange>(argNode->range)) {
+                    FloatRange fr = std::get<FloatRange>(argNode->range);
+                    if (fr.min != 0.0f && (x < fr.min || z < fr.min)) return false;
+                    if (fr.max != 0.0f && (x > fr.max || z > fr.max)) return false;
+                }
+
+                // Format parsedArg as "x,z"
+                std::ostringstream oss;
+                oss << x << "," << z;
+                parsedArgs.emplace_back(oss.str());
+
+                currentTokenIndex++;
                 return true;
             }
-            catch (std::invalid_argument&) {
-                return false;
+            case 42: { // minecraft:time
+                const std::string& token = tokens[currentTokenIndex];
+                int value = std::stoi(token);
+
+                // Check min
+                if (std::holds_alternative<IntRange>(argNode->range)) {
+                    IntRange ir = std::get<IntRange>(argNode->range);
+                    if (value < ir.min) return false;
+                }
+
+                parsedArgs.emplace_back(std::to_string(value));
             }
-            catch (std::out_of_range&) {
-                return false;
+            // TODO: Handle other parserIds
+            default: {
+                if (currentTokenIndex >= tokens.size()) return false;
+                parsedArgs.emplace_back(tokens[currentTokenIndex]);
+                return true;
             }
         }
-        // TODO: Handle other parserIds
-
-        // If parserId not handled, accept the argument as-is
-        parsedArg = token;
-        return true;
     }
 };
 

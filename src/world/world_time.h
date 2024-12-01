@@ -14,6 +14,7 @@ struct WorldTime {
     void tick();
     int64_t getWorldAge();
     int64_t getTimeOfDay();
+    int64_t getDays();
     void setTimeOfDay(int64_t newTime);
 };
 

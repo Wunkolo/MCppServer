@@ -12,12 +12,17 @@ void WorldBorder::calculatePortalTeleportBoundary() {
 }
 
 void WorldBorder::initialize(const WorldBorderConfig& config) {
+    if (isInitialized) {
+        return;
+    }
     size = config.size;
     centerX = config.center[0];
     centerZ = config.center[1];
     warningTime = config.warningTime;
     warningBlocks = config.warningBlocks;
+    biggestSize = config.size;
     calculatePortalTeleportBoundary();
+    isInitialized = true;
 }
 
 void WorldBorder::updateSize(double newSize) {
@@ -30,4 +35,19 @@ void WorldBorder::updateCenter(double newCenterX, double newCenterZ) {
     std::lock_guard lock(borderMutex);
     centerX = newCenterX;
     centerZ = newCenterZ;
+}
+
+void WorldBorder::updateWarningTime(int32_t newWarningTime) {
+    std::lock_guard lock(borderMutex);
+    warningTime = newWarningTime;
+}
+
+void WorldBorder::updateWarningDistance(int32_t newWarningBlocks) {
+    std::lock_guard lock(borderMutex);
+    warningBlocks = newWarningBlocks;
+}
+
+void WorldBorder::reInitialize() {
+    std::lock_guard lock(borderMutex);
+    biggestSize = size;
 }

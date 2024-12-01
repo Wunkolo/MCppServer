@@ -52,7 +52,13 @@ void sendKnownPacksPacket(ClientConnection& client);
 void sendSetCompressionPacket(ClientConnection& client, int32_t threshold);
 void sendServerLinksPacket(ClientConnection & client);
 void sendServerPluginMessages(ClientConnection & client);
+void sendReInitializeWorldBorder(double x, double z, double size, int64_t speed, int32_t warningBlocks, int32_t warningTime);
 void sendInitializeWorldBorder(ClientConnection& client, const WorldBorder& border);
 void sendTimeUpdatePacket(ClientConnection& client);
+void sendSetBorderCenter(double x, double z);
+void sendSetBorderLerpSize(double newDiameter, int64_t speed);
+void sendSetBorderSize(double newDiameter);
+void sendSetBorderWarningDelay(int32_t warningTime);
+void sendSetBorderWarningDistance(int32_t warningBlocks);
 
 #endif //CLIENTBOUND_PACKETS_H

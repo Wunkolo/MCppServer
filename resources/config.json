@@ -8,7 +8,7 @@
   "world_type": "flat",
   "flatworld_preset": "overworld",
   "view_distance": 10,
-  "online_mode": true,
+  "online_mode": false,
   "enable_encryption": true,
   "enable_compression": true,
   "compression_threshold": 256,
@@ -33,7 +33,7 @@
   "rcon_port": 25575,
   "broadcast_rcon_to_ops": false,
   "world_border": {
-    "world_border_size": 60000000.0,
+    "world_border_size": 100.0,
     "world_border_center": [0, 0],
     "world_border_warning_time": 15,
     "world_border_warning_blocks": 5
