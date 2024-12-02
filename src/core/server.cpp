@@ -118,10 +118,10 @@ void runServer() {
         logMessage("Failed to load world.", LOG_ERROR);
     }
 
-    blocks = loadBlocks("resources/blocks.json");
-    biomes = loadBiomes("resources/biomes.json");
-    items = loadItems("resources/items.json");
-    itemIDs = loadItemIDs("resources/items.json");
+    blocks = loadBlocks("../resources/blocks.json");
+    biomes = loadBiomes("../resources/biomes.json");
+    items = loadItems("../resources/items.json");
+    itemIDs = loadItemIDs("../resources/items.json");
 
     auto endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedSeconds = endTime - startTime;

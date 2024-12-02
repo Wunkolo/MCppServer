@@ -11,7 +11,7 @@ std::atomic configChanged(false);
 std::string configDirectory;
 
 void loadConfig() {
-    std::string configFilePath = "resources/config.json";
+    std::string configFilePath = "../config.json";
     std::ifstream configFile(configFilePath);
     if (!configFile) {
         // Set default config if file doesn't exist

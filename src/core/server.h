@@ -40,7 +40,7 @@ enum class GameEvent : uint8_t {
 inline Position spawnPosition = {0, 0, 0};
 
 inline std::unordered_map<std::string, FlatWorldSettings> flatWorldPresets = loadFlatWorldPresets(
-            "resources/flatworld_presets.json");
+            "../resources/flatworld_presets.json");
 
 inline EntityManager entityManager;
 

@@ -1,0 +1,42 @@
+{
+  "server_version": "1.21.1",
+  "protocol_version": 767,
+  "server_port": 25565,
+  "motd": "§a§lC++ Mineraft Server\n§bHigh performance and efficency",
+  "maxPlayers": 100,
+  "icon": "server-icon.png",
+  "world_type": "flat",
+  "flatworld_preset": "overworld",
+  "view_distance": 10,
+  "online_mode": false,
+  "enable_encryption": true,
+  "enable_compression": true,
+  "compression_threshold": 256,
+  "enable_secure_chat": false,
+  "op_permission_level": 4,
+  "server_links":
+  [
+    {
+      "label": "Example Website",
+      "url": "https://example.com"
+    },
+    {
+      "label": "Example Discord",
+      "url": "https://discord.gg/example"
+    }
+  ],
+  "enable_query": false,
+  "query_port": 25565,
+  "resource_packs": [],
+  "enable_rcon": false,
+  "rcon_password": "12345",
+  "rcon_port": 25575,
+  "broadcast_rcon_to_ops": false,
+  "world_border": {
+    "world_border_size": 100.0,
+    "world_border_center": [0, 0],
+    "world_border_warning_time": 15,
+    "world_border_warning_blocks": 5
+  },
+  "ticks_per_second": 20
+}
