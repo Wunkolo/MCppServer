@@ -37,6 +37,7 @@ void loadConfig() {
         serverConfig.queryPort = 25565;
         serverConfig.enableRcon = false;
         serverConfig.ticksPerSecond = 20;
+        serverConfig.consoleLang = "en_us";
         logMessage("Failed to open config file: " + configFilePath, LOG_ERROR);
         return;
     }
@@ -173,5 +174,6 @@ void loadConfig() {
     // ********** End of World Border Settings **********
 
     serverConfig.ticksPerSecond = jsonConfig.value("ticks_per_second", 20);
+    serverConfig.consoleLang = jsonConfig.value("console_language", "en_us");
 }
 

@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -12,6 +13,7 @@
 #include "enums/enums.h"
 #include "networking/fetch.h"
 
+class Bossbar;
 struct sockaddr_in;
 struct ClientConnection;
 struct Player;
@@ -62,6 +64,25 @@ struct ChatType {
     }
 };
 
+
+// Hash function for std::array<uint8_t, 16>
+struct ArrayHash {
+    std::size_t operator()(const std::array<uint8_t, 16>& arr) const {
+        std::size_t hash = 0;
+        for (auto byte : arr) {
+            hash ^= std::hash<uint8_t>{}(byte) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
+};
+
+// Equality function for std::array<uint8_t, 16>
+struct ArrayEqual {
+    bool operator()(const std::array<uint8_t, 16>& lhs, const std::array<uint8_t, 16>& rhs) const {
+        return lhs == rhs;
+    }
+};
+
 std::vector<uint8_t> readFile(const std::string& filename);
 std::string base64Encode(const std::vector<uint8_t>& data);
 std::string getDirectoryFromPath(const std::string& filepath);
@@ -86,7 +107,6 @@ std::string getClientIPAddress(const ClientConnection& client);
 std::string generateServerID();
 nbt::tag_compound createTextComponent(const std::string& text, const std::string& color = "white");
 std::vector<uint8_t> base64Decode(const std::string &encoded);
-
 Player *getPlayer(const std::string &username);
 std::string capitalizeFirstLetter(const std::string& str);
 Gamemode stringToGamemode(const std::string& gamemode);
@@ -97,5 +117,9 @@ void manageResourcePacks();
 ParsedURL parseURL(const std::string& url);
 std::string sockaddrToString(const sockaddr_in& addr);
 int32_t generateChallengeToken();
+std::string removeFormattingCodes(const std::string &input);
+std::string colorBossbarMessage(const Bossbar& bossbar);
+BossbarColor stringToBossbarColor(const std::string& color);
+BossbarDivision stringToBossbarDivision(const std::string& division);
 
 #endif // UTILS_H

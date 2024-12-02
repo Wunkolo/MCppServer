@@ -54,5 +54,23 @@ enum ResourcePackResult {
   DISCARDED = 7
 };
 
+enum BossbarColor {
+  PINK,
+  BLUE,
+  RED,
+  GREEN,
+  YELLOW,
+  PURPLE,
+  WHITE
+};
+
+enum BossbarDivision {
+  NO_DIVISION,
+  SIX_NOTCHES,
+  TEN_NOTCHES,
+  TWELVE_NOTCHES,
+  TWENTY_NOTCHES
+};
+
 
 #endif //ENUMS_H

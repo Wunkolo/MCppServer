@@ -73,6 +73,10 @@ add_executable(MCppServer src/main.cpp
         src/world/world_border.h
         src/world/world_time.cpp
         src/world/world_time.h
+        src/utils/translation.cpp
+        src/utils/translation.h
+        src/world/boss_bar.cpp
+        src/world/boss_bar.h
 )
 
 # Include FetchContent module

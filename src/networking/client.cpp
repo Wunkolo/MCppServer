@@ -21,6 +21,7 @@
 #include "registries/registry_manager.h"
 #include "core/server.h"
 #include "entities/slot_data.h"
+#include "utils/translation.h"
 
 // TODO: Make sure EntityManager and connectedClients are thread-safe
 
@@ -29,7 +30,6 @@ std::atomic<int> playerCount(0);
 
 // Function to disconnect client
 void disconnectClient(const Player& player, const std::string& reason, bool disconnectPacket) {
-    sendChatMessage(player.name + " left the game", false, "yellow");
     if (disconnectPacket) {
         sendDisconnectionPacket(*player.client, reason);
         logMessage("Player " + player.name + " disconnected. Reason: " + reason, LOG_INFO);
@@ -53,6 +53,7 @@ void disconnectClient(const Player& player, const std::string& reason, bool disc
 
     sendPlayerInfoRemove(player);
     sendRemoveEntityPacket(player.entityID);
+    sendTranslatedChatMessage("multiplayer.player.left", false, "yellow", nullptr, true, player.name);
 }
 
 void handleStatusRequest(ClientConnection& client) {
@@ -144,6 +145,7 @@ void handleTeleportConfirm(ClientConnection& client, const std::vector<uint8_t>&
 bool handleClientInformation(Player& player, const std::vector<uint8_t> & packetData, size_t index) {
     // Read Locale (String)
     std::string locale = parseString(packetData, index);
+    player.lang = locale;
     // Read View Distance (Byte)
     uint8_t viewDistance = packetData[index++];
     player.viewDistance = viewDistance;
@@ -983,8 +985,9 @@ void handleChatMessage(const ClientConnection & client, const std::vector<uint8_
 }
 
 void handleCommand(ClientConnection & client, const std::shared_ptr<Player>& player, const std::string & command) {
-    auto chatOutput = [player](const std::string& message, bool error) {
-        sendChatMessage(message,false, error ? "red" : "white", *player, false);
+    auto chatOutput = [player](const std::string& message, bool error, const std::vector<std::string>& args) {
+        std::vector<Player> playerInfo = {*player};
+        sendTranslatedChatMessage(message, false, error ? "red" : "white", &playerInfo, false, &args);
     };
     CommandParser parser(globalCommandGraph, chatOutput);
 
@@ -993,8 +996,13 @@ void handleCommand(ClientConnection & client, const std::shared_ptr<Player>& pla
 }
 
 void handleConsoleCommand(const std::string & command) {
-    auto consoleOutput = [](const std::string& message, bool error) {
-        logMessage("[Console] " + message, error? LOG_ERROR : LOG_RAW);
+    auto consoleOutput = [](const std::string& message, bool error, const std::vector<std::string>& args) {
+        std::string formattedMessage = removeFormattingCodes(message);
+        std::vector<std::string> formattedArgs;
+        for (const auto& arg : args) {
+            formattedArgs.push_back(removeFormattingCodes(arg));
+        }
+        logMessage("[Console] " + getTranslationString(formattedMessage, consoleLang, formattedArgs), error? LOG_ERROR : LOG_RAW);
     };
     CommandParser parser(globalCommandGraph, consoleOutput);
 
@@ -1055,6 +1063,30 @@ void handleResourcePackResponse(const ClientConnection & client, const std::vect
     }
 }
 
+void handleCommandSuggestionsRequest(ClientConnection & client, const std::vector<uint8_t> & vector, size_t size, const std::shared_ptr<Player> & shared) {
+    int32_t transactionID = parseVarInt(vector, size);
+    std::string command = parseString(vector, size);
+    if (command[0] == '/') {
+        command = command.substr(1);
+    }
+    if (command.back() == ' ') {
+        command.pop_back();
+    }
+    if (command.find("bossbar set") == 0 && command.find("color") != std::string::npos) {
+        sendCommandSuggestionsResponse(client, transactionID, {"blue", "green", "pink", "purple", "red", "white", "yellow"}, command.length() + 2);
+    } else if (command.find("bossbar set") == 0 && command.find("style") != std::string::npos) {
+            sendCommandSuggestionsResponse(client, transactionID, {"notched_10", "notched_12", "notched_20", "notched_6", "progress"}, command.length() + 2);
+    } else if (command.find("bossbar get") == 0 || command.find("bossbar set") == 0 || command.find("bossbar remove") == 0) {
+        // Send BossBar suggestions
+        std::vector<std::string> suggestions;
+        for (const auto &bossBar: bossBars | std::views::values) {
+            suggestions.push_back("minecraft:" + bossBar.getId());
+        }
+        sendCommandSuggestionsResponse(client, transactionID, suggestions, command.length() + 2);
+    } else {
+    }
+}
+
 void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& packetData, const std::shared_ptr<Player>& player, const RegistryManager& registryManager) {
     size_t index = 0;
 
@@ -1075,6 +1107,9 @@ void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& pa
             break;
         case PLAYER_SESSION: // Player Session
             handlePlayerSession(client, packetData, index, player);
+            break;
+        case COMMAND_SUGGESTIONS_REQUEST: // Command Suggestions Request
+            handleCommandSuggestionsRequest(client, packetData, index, player);
             break;
         case PLAYER_POSITION: // Player Position
             if (client.state != ClientState::AwaitingTeleportConfirm) {
@@ -1718,8 +1753,7 @@ void handleLoginRequest(ClientConnection& client, RegistryManager& registryManag
         return;
     }
 
-    std::string joinMessage = playerName + " joined the game";
-    sendChatMessage(joinMessage, false, "yellow");
+    sendTranslatedChatMessage("multiplayer.player.joined", false, "yellow", nullptr, true, newPlayer->name);
 
     // Now in Play state
     client.state = ClientState::Play;

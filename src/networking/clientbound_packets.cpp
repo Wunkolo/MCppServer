@@ -12,6 +12,8 @@
 #include "core/server.h"
 #include "core/utils.h"
 #include "registries/wolf_variant.h"
+#include "utils/translation.h"
+#include "world/boss_bar.h"
 
 void sendRemoveEntityPacket(const int32_t& entityID) {
     std::vector<uint8_t> packetData;
@@ -784,6 +786,42 @@ void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs) {
     broadcastToOthers(packetData);
 }
 
+void sendTranslatedChatMessage(const std::string& key, const bool actionBar, const std::string& color, const std::vector<Player>* players, bool log, const std::vector<std::string>* args) {
+    std::vector<uint8_t> packetData = { };
+
+    if (players == nullptr) {
+        for (const auto &player: globalPlayers | std::views::values) {
+            packetData.clear();
+            packetData.push_back(SYSTEM_CHAT_MESSAGE);
+
+            nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player->lang, *args), color);
+            std::vector<uint8_t> textData = serializeNBT(textCompound, true);
+            packetData.insert(packetData.end(), textData.begin(), textData.end());
+
+            writeByte(packetData, actionBar);
+            sendPacket(*player->client, packetData);
+        }
+    }
+    else {
+        for (const auto& player : *players) {
+            if (player.client != nullptr) {
+                packetData.clear();
+                packetData.push_back(SYSTEM_CHAT_MESSAGE);
+
+                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player.lang, *args), color);
+                std::vector<uint8_t> textData = serializeNBT(textCompound, true);
+                packetData.insert(packetData.end(), textData.begin(), textData.end());
+
+                writeByte(packetData, actionBar);
+                sendPacket(*player.client, packetData);
+            }
+        }
+    }
+    if (log) {
+        logMessage(getTranslation(key, consoleLang, *args), LOG_RAW);
+    }
+}
+
 void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const std::vector<Player>* players, bool log) {
     std::vector<uint8_t> packetData = { };
     packetData.push_back(SYSTEM_CHAT_MESSAGE);
@@ -1275,4 +1313,80 @@ void sendSetBorderWarningDistance(int32_t warningBlocks) {
 
     // Send the packet to all clients
     broadcastToOthers(packet);
+}
+
+void sendBossbar(Bossbar& bossbar, int32_t action) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, BOSS_BAR);
+    std::array<uint8_t, 16> uuid = bossbar.getUUID();
+    std::vector<uint8_t> uuidBytes;
+    uuidBytes.insert(uuidBytes.end(), uuid.begin(), uuid.end());
+    writeBytes(packet, uuidBytes);
+    writeVarInt(packet, action);
+    switch (action) {
+        case 0: { // Add
+            // Title (Text Component)
+            std::vector<uint8_t> titleBytes = serializeNBT(bossbar.getTitle(), true);
+            writeBytes(packet, titleBytes);
+            // Health (Float)
+            writeFloat(packet, bossbar.getHealth());
+            // Color (VarInt)
+            writeVarInt(packet, bossbar.getColor());
+            // Division (VarInt)
+            writeVarInt(packet, bossbar.getDivision());
+            // Flags (Unsigned Byte)
+            writeByte(packet, bossbar.getFlags());
+            break;
+        }
+        case 1: { // Remove
+            // No fields
+            break;
+        }
+        case 2: { // Update Health
+            // Health (Float)
+            writeFloat(packet, bossbar.getHealth());
+            break;
+        }
+        case 3: { // Update Title
+            // Title (Text Component)
+            std::vector<uint8_t> titleBytes = serializeNBT(bossbar.getTitle(), true);
+            writeBytes(packet, titleBytes);
+            break;
+        }
+        case 4: { // Update Style
+            // Color (VarInt)
+            writeVarInt(packet, bossbar.getColor());
+            // Division (VarInt)
+            writeVarInt(packet, bossbar.getDivision());
+            break;
+        }
+        case 5: { // Update flags
+            // Flags (Unsigned Byte)
+            writeByte(packet, bossbar.getFlags());
+            break;
+        }
+        default: {
+            logMessage("Invalid bossbar action: " + std::to_string(action), LOG_ERROR);
+            return;
+        }
+    }
+    for (const auto* player : bossbar.getPlayers()) {
+        if (player->client != nullptr) {
+            sendPacket(*player->client, packet);
+        }
+    }
+}
+
+void sendCommandSuggestionsResponse(ClientConnection& client, int32_t transactionID, const std::vector<std::string>& suggestions, int32_t start) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, COMMAND_SUGGESTIONS_RESPONSE);
+    writeVarInt(packet, transactionID);
+    writeVarInt(packet, start);
+    writeVarInt(packet, 0);
+    writeVarInt(packet, static_cast<int32_t>(suggestions.size()));
+    for (const auto& suggestion : suggestions) {
+        writeString(packet, suggestion);
+        writeByte(packet, 0x00); // No text component
+    }
+    sendPacket(client, packet);
 }

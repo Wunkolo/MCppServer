@@ -33,6 +33,7 @@ struct Player : Entity {
     PublicKey sessionKey;
     EVP_PKEY* publicKey = nullptr;
     std::string brand;
+    std::string lang;
 
     void setSneaking(bool isSneaking) {
         if (isSneaking) {

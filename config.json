@@ -33,10 +33,11 @@
   "rcon_port": 25575,
   "broadcast_rcon_to_ops": false,
   "world_border": {
-    "world_border_size": 100.0,
+    "world_border_size": 60000000.0,
     "world_border_center": [0, 0],
     "world_border_warning_time": 15,
     "world_border_warning_blocks": 5
   },
-  "ticks_per_second": 20
+  "ticks_per_second": 20,
+  "console_language": "en_us"
 }

@@ -9,6 +9,7 @@
 #include "world/flatworld.h"
 #include "server/rcon_server.h"
 #include "utils/thread_pool.h"
+#include "world/boss_bar.h"
 #include "world/world_border.h"
 #include "world/world_time.h"
 
@@ -48,6 +49,7 @@ inline std::unordered_map<std::string, BiomeData> biomes;
 inline std::unordered_map<std::string, BlockData> blocks;
 inline std::unordered_map<std::string, ItemData> items;
 inline std::unordered_map<int, ItemData> itemIDs;
+inline std::unordered_map<std::string, std::unordered_map<std::string, std::string>> translations;
 
 inline std::shared_ptr<RootNode> globalCommandGraph;
 inline size_t commandGraphNumOfNodes;
@@ -67,5 +69,8 @@ inline std::unique_ptr<RCONServer> rconServer;
 // TODO: Create a world class to hold all world data
 inline WorldBorder worldBorder;
 inline WorldTime worldTime;
+inline std::unordered_map<std::array<uint8_t, 16>, Bossbar, ArrayHash, ArrayEqual> bossBars;
+
+inline std::string consoleLang;
 
 #endif // SERVER_H

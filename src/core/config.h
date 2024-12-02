@@ -60,6 +60,7 @@ struct ServerConfig {
     bool broadcastRconToOps;
     WorldBorderConfig worldBorder;
     int ticksPerSecond;
+    std::string consoleLang;
 };
 
 extern ServerConfig serverConfig;

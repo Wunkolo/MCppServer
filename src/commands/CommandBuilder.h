@@ -36,7 +36,7 @@ struct DoubleRange {
 using ArgumentRange = std::variant<std::monostate, IntRange, FloatRange, DoubleRange>;
 
 // Type alias for command handlers
-using CommandHandler = std::function<void(const Player*, const std::vector<std::string>&, std::function<void(const std::string&, bool)>)>;
+using CommandHandler = std::function<void(const Player*, const std::vector<std::string>&, std::function<void(const std::string&, bool, const std::vector<std::string>&)>)>;
 
 void buildAllCommands();
 
@@ -47,8 +47,10 @@ public:
     bool isExecutable;
     bool consoleExecutable;
     bool hasRedirect;
+    bool hasSuggestions;
     int redirectIndex;
     std::string name;
+    std::string identifier;
     int parserId;
 
     // Handler function (only for executable nodes)
@@ -57,7 +59,8 @@ public:
     std::vector<std::shared_ptr<CommandNode>> children;
 
     CommandNode(NodeType type, const std::string& name = "", int parserId = -1)
-        : type(type), isExecutable(false), consoleExecutable(false), hasRedirect(false), redirectIndex(-1), name(name),
+        : type(type), isExecutable(false), consoleExecutable(false), hasRedirect(false), hasSuggestions(false),
+          redirectIndex(-1), name(name),
           parserId(parserId) {
     }
 
@@ -94,6 +97,14 @@ public:
 
     void setParserProperties(uint8_t properties) {
         parserProperties = properties;
+    }
+
+    void setHasSuggestions(bool suggestions) {
+        hasSuggestions = suggestions;
+    }
+
+    void suggestionIdentifier(const std::string& id) {
+        identifier = id;
     }
 
     void setIntegerRange(int min, int max) {
@@ -247,6 +258,50 @@ public:
         return *this;
     }
 
+    CommandBuilder& setHasSuggestions(bool suggestions) {
+        if (nodeStack.empty()) {
+            logMessage("No node to set suggestions on", LOG_ERROR);
+            return *this;
+        }
+
+        auto lastNode = nodeStack.back();
+        if (lastNode->type != NodeType::ARGUMENT) {
+            logMessage("Last node is not an argument", LOG_ERROR);
+            return *this;
+        }
+
+        auto argNode = std::dynamic_pointer_cast<ArgumentNode>(lastNode);
+        if (!argNode) {
+            logMessage("Failed to cast to ArgumentNode", LOG_ERROR);
+            return *this;
+        }
+
+        argNode->setHasSuggestions(suggestions);
+        return *this;
+    }
+
+    CommandBuilder& suggestionIdentifier(const std::string& id) {
+        if (nodeStack.empty()) {
+            logMessage("No node to set suggestion identifier on", LOG_ERROR);
+            return *this;
+        }
+
+        auto lastNode = nodeStack.back();
+        if (lastNode->type != NodeType::ARGUMENT) {
+            logMessage("Last node is not an argument", LOG_ERROR);
+            return *this;
+        }
+
+        auto argNode = std::dynamic_pointer_cast<ArgumentNode>(lastNode);
+        if (!argNode) {
+            logMessage("Failed to cast to ArgumentNode", LOG_ERROR);
+            return *this;
+        }
+
+        argNode->suggestionIdentifier(id);
+        return *this;
+    }
+
     // Associate a handler with the current node (must be executable)
     CommandBuilder& handler(const CommandHandler &h) {
         if (nodeStack.empty()) {
@@ -317,6 +372,7 @@ public:
             }
             if (node->isExecutable) flags |= 0x04;
             if (node->hasRedirect) flags |= 0x08;
+            if (node->hasSuggestions) flags |= 0x10;
 
             serializedNodes.push_back(flags);
 
@@ -423,6 +479,11 @@ public:
                     break;
                 }
             }
+
+            // Suggestions
+            if (node->hasSuggestions) {
+                writeString(serializedNodes, node->identifier);
+            }
         }
 
         // Root index
@@ -437,7 +498,7 @@ public:
 
 class CommandParser {
 public:
-    CommandParser(const std::shared_ptr<RootNode> &rootNode, const std::function<void(const std::string&, bool)> &outputFunc) : root(rootNode), sendOutput(outputFunc) {}
+    CommandParser(const std::shared_ptr<RootNode> &rootNode, const std::function<void(const std::string&, bool, const std::vector<std::string>&)> &outputFunc) : root(rootNode), sendOutput(outputFunc) {}
 
     bool parseAndExecute(const Player& player, const std::string& inputCommand) const {
         // Tokenize the input command
@@ -477,7 +538,7 @@ public:
 
             if (!matched) {
                 // No matching child found
-                sendOutput("Unknown command or invalid arguments.", true);
+                sendOutput("Unknown command or invalid arguments.", true, {});
                 return false;
             }
 
@@ -492,12 +553,12 @@ public:
         }
         else {
             // Command incomplete or not executable
-            sendOutput("Incomplete command.", true);
+            sendOutput("Incomplete command.", true, {});
             return false;
         }
     }
 
-    bool parseAndExecuteConsole(const std::string& inputCommand, const std::function<void(const std::string&, bool)> &output) const {
+    bool parseAndExecuteConsole(const std::string& inputCommand, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &output) const {
         // Tokenize the input command
         std::vector<std::string> tokens = tokenize(inputCommand);
         if (tokens.empty()) {
@@ -534,7 +595,7 @@ public:
 
             if (!matched) {
                 // No matching child found
-                output("Unknown command or invalid arguments.", true);
+                output("Unknown command or invalid arguments.", true, {});
                 return false;
             }
 
@@ -548,13 +609,13 @@ public:
             return true;
         }
         // Command incomplete or not executable
-        output("Incomplete command.", true);
+        output("Incomplete command.", true, {});
         return false;
     }
 
 private:
     std::shared_ptr<RootNode> root;
-    std::function<void(const std::string&, bool)> sendOutput;
+    std::function<void(const std::string&, bool, const std::vector<std::string>&)> sendOutput;
 
     // Helper function to tokenize the input command
     static std::vector<std::string> tokenize(const std::string& input) {
@@ -761,7 +822,7 @@ private:
                     if (value < ir.min) return false;
                 }
 
-                parsedArgs.emplace_back(std::to_string(value));
+                parsedArgs.emplace_back(token);
             }
             // TODO: Handle other parserIds
             default: {

@@ -21,6 +21,7 @@
 #include "networking/fetch.h"
 #include "server.h"
 #include "zlib.h"
+#include "utils/translation.h"
 
 std::vector<uint8_t> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
@@ -597,13 +598,13 @@ Gamemode stringToGamemode(const std::string& gamemode) {
 std::string gamemodeToString(Gamemode gamemode) {
     switch (gamemode) {
         case SURVIVAL:
-            return "Survival";
+            return "survival";
         case CREATIVE:
-            return "Creative";
+            return "creative";
         case ADVENTURE:
-            return "Adventure";
+            return "adventure";
         case SPECTATOR:
-            return "Spectator";
+            return "spectator";
         default:
             return "Unknown";
     }
@@ -614,7 +615,7 @@ void logMessage(const std::string& message, LogType logType) {
         std::cout << "[INFO] " << message << std::endl;
     } else if (logType == LOG_WARNING) {
         std::cout << "[WARNING] " << message << std::endl;
-    } else if (logType == LogType::LOG_ERROR) {
+    } else if (logType == LOG_ERROR) {
         std::cerr << "[ERROR] " << message << std::endl;
     } else if (logType == LOG_DEBUG && PRINT_DEBUG) {
         std::cout << "[DEBUG] " << message << std::endl;
@@ -845,4 +846,87 @@ int32_t generateChallengeToken() {
     static std::mt19937 rng(std::random_device{}());
     static std::uniform_int_distribution<int32_t> dist(0, INT32_MAX); // 0 to 2,147,483,647
     return dist(rng);
+}
+
+std::string removeFormattingCodes(const std::string &input) {
+    std::string result;
+    result.reserve(input.size()); // Reserve space to optimize performance
+
+    for (size_t i = 0; i < input.length(); ++i) {
+        if (input[i] == '\302') {
+            // Skip the '§' character and the next character if it exists
+            if (i + 1 < input.length()) {
+                i += 2; // Skip the formatting code character
+            }
+            // If '§' is the last character, just skip it
+        } else {
+            result += input[i];
+        }
+    }
+
+    return result;
+}
+
+std::string colorBossbarMessage(const Bossbar& bossbar) {
+    switch (bossbar.getColor()) {
+        case PINK:
+            return "§c"; // For some reason minecraft uses red
+        case BLUE:
+            return "§9";
+        case RED:
+            return  "§4"; // Dark red
+        case GREEN:
+            return "§a"; // Light green
+        case YELLOW:
+            return "§e";
+        case PURPLE:
+            return "§1"; // For some reason minecraft uses dark blue
+        case WHITE:
+            return "§f";
+    }
+    return "";
+}
+
+BossbarColor stringToBossbarColor(const std::string& color) {
+    if (color == "pink") {
+        return PINK;
+    }
+    if (color == "blue") {
+        return BLUE;
+    }
+    if (color == "red") {
+        return RED;
+    }
+    if (color == "green") {
+        return GREEN;
+    }
+    if (color == "yellow") {
+        return YELLOW;
+    }
+    if (color == "purple") {
+        return PURPLE;
+    }
+    if (color == "white") {
+        return WHITE;
+    }
+    return WHITE;
+}
+
+BossbarDivision stringToBossbarDivision(const std::string& division) {
+    if (division == "progress") {
+        return NO_DIVISION;
+    }
+    if (division == "notched_6") {
+        return SIX_NOTCHES;
+    }
+    if (division == "notched_10") {
+        return TEN_NOTCHES;
+    }
+    if (division == "notched_12") {
+        return TWELVE_NOTCHES;
+    }
+    if (division == "notched_20") {
+        return TWENTY_NOTCHES;
+    }
+    return NO_DIVISION;
 }

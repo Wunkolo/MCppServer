@@ -4,6 +4,7 @@
 #include "commands/CommandBuilder.h"
 #include "utils/le32toh.h"
 #include "core/utils.h"
+#include "utils/translation.h"
 
 
 RCONServer::RCONServer(int port, const std::string& password)
@@ -264,8 +265,13 @@ void RCONServer::processCommand(SocketType clientSock, const std::string& comman
     logMessage("Received command: " + command, LOG_INFO);
     std::string commandOutput;
 
-    auto outputCollector = [&](const std::string& message, bool isError) {
-        commandOutput += message + "\n"; // Append messages with newline
+    auto outputCollector = [&](const std::string& message, bool isError, const std::vector<std::string>& args) {
+        std::string formattedMessage = removeFormattingCodes(message);
+        std::vector<std::string> formattedArgs;
+        for (const auto& arg : args) {
+            formattedArgs.push_back(removeFormattingCodes(arg));
+        }
+        commandOutput += getTranslationString(formattedMessage, consoleLang, formattedArgs) + "\n"; // Append messages with newline
     };
 
     // Create a CommandParser instance with the command graph and output collector

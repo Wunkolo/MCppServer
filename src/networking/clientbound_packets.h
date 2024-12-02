@@ -3,9 +3,14 @@
 #include <cstdint>
 
 #include "client.h"
+#include "packet_ids.h"
+#include "core/server.h"
+#include "entities/player.h"
 #include "enums/enums.h"
 #include "registries/registry_manager.h"
+#include "utils/translation.h"
 
+class Bossbar;
 struct WorldBorder;
 struct EquipmentSlot;
 struct MetadataEntry;
@@ -32,6 +37,7 @@ void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Play
 void sendGameEventPacket(ClientConnection& targetClient, GameEvent event, float value);
 void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode);
 void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs);
+void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, const std::vector<std::string>* args = nullptr);
 void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const Player& player, bool log = true);
 void sendChatMessage(const std::string& message, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true);
 void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t entityStatus);
@@ -60,5 +66,44 @@ void sendSetBorderLerpSize(double newDiameter, int64_t speed);
 void sendSetBorderSize(double newDiameter);
 void sendSetBorderWarningDelay(int32_t warningTime);
 void sendSetBorderWarningDistance(int32_t warningBlocks);
+void sendBossbar(Bossbar& bossbar, int32_t action);
+void sendCommandSuggestionsResponse(ClientConnection& client, int32_t transactionID, const std::vector<std::string>& suggestions, int32_t start);
+
+template<typename... Args>
+void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, Args&&... args) {
+    std::vector<uint8_t> packetData = { };
+
+    if (players == nullptr) {
+        for (const auto &player: globalPlayers | std::views::values) {
+            packetData.clear();
+            packetData.push_back(SYSTEM_CHAT_MESSAGE);
+
+            nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player->lang, std::forward<Args>(args)...), color);
+            std::vector<uint8_t> textData = serializeNBT(textCompound, true);
+            packetData.insert(packetData.end(), textData.begin(), textData.end());
+
+            writeByte(packetData, actionBar);
+            sendPacket(*player->client, packetData);
+        }
+    }
+    else {
+        for (const auto& player : *players) {
+            if (player.client != nullptr) {
+                packetData.clear();
+                packetData.push_back(SYSTEM_CHAT_MESSAGE);
+
+                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player.lang, std::forward<Args>(args)...), color);
+                std::vector<uint8_t> textData = serializeNBT(textCompound, true);
+                packetData.insert(packetData.end(), textData.begin(), textData.end());
+
+                writeByte(packetData, actionBar);
+                sendPacket(*player.client, packetData);
+            }
+        }
+    }
+    if (log) {
+        logMessage(getTranslation(key, consoleLang, std::forward<Args>(args)...), LOG_RAW);
+    }
+}
 
 #endif //CLIENTBOUND_PACKETS_H

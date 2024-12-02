@@ -122,11 +122,12 @@ void runServer() {
     biomes = loadBiomes("../resources/biomes.json");
     items = loadItems("../resources/items.json");
     itemIDs = loadItemIDs("../resources/items.json");
+    translations = loadTranslations("../resources/languages.json");
 
     auto endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedSeconds = endTime - startTime;
-    logMessage("Server started in " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(elapsedSeconds).count()) + "ms.", LOG_INFO);
-    logMessage("Minecraft server is running on port " + std::to_string(serverConfig.port) + ".", LOG_INFO);
+    logMessage(getTranslation("server.start.time", consoleLang, std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(elapsedSeconds).count())), LOG_INFO);
+    logMessage(getTranslation("server.start.port", consoleLang, std::to_string(serverConfig.port)), LOG_INFO);
 
     // Initialize and start the QueryServer if enabled
     std::unique_ptr<QueryServer> queryServer;
