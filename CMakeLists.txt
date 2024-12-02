@@ -97,6 +97,8 @@ FetchContent_MakeAvailable(zlib)
 # Manually set ZLIB include directory
 set(ZLIB_INCLUDE_DIR ${zlib_SOURCE_DIR})
 
+set(ZLIB_LIBRARY ${ZLIB_LIBRARY})
+
 # Fetch libnbt++ 2 library
 FetchContent_Declare(
         libnbtplusplus

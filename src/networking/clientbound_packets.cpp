@@ -53,7 +53,7 @@ void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryM
 
     // 5. Data (NBT)
     std::vector<DimensionType> dimensions;
-    if (!loadDimensionTypesFromCompoundFile("resources/registry_data.json", dimensions)) {
+    if (!loadDimensionTypesFromCompoundFile("../resources/registry_data.json", dimensions)) {
         logMessage("Failed to load dimension data.", LOG_ERROR);
         return;
     }
@@ -87,7 +87,7 @@ void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryM
 
     // Load biomes
     std::vector<BiomeRegistryEntry> biomeEntries;
-    if (!loadBiomesFromCompoundFile("resources/registry_data.json", biomeEntries)) {
+    if (!loadBiomesFromCompoundFile("../resources/registry_data.json", biomeEntries)) {
         logMessage("Failed to load biomes from registry_data.json.", LOG_ERROR);
         return;
     }
@@ -135,7 +135,7 @@ void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryM
 
     // Load painting variants
     std::vector<PaintingVariant> paintingVariants;
-    if (!loadPaintingVariantsFromCompoundFile("resources/registry_data.json", paintingVariants)) {
+    if (!loadPaintingVariantsFromCompoundFile("../resources/registry_data.json", paintingVariants)) {
         logMessage("Failed to load painting variants from registry_data.json.", LOG_ERROR);
         return;
     }
@@ -169,7 +169,7 @@ void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryM
 
     // Load wolf variants
     std::vector<WolfVariant> wolfVariants;
-    if (!loadWolfVariantsFromCompoundFile("resources/registry_data.json", wolfVariants)) {
+    if (!loadWolfVariantsFromCompoundFile("../resources/registry_data.json", wolfVariants)) {
         logMessage("Failed to load wolf variants from registry_data.json.", LOG_ERROR);
         return;
     }
@@ -203,7 +203,7 @@ void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryM
 
     // Load damage types
     std::vector<DamageType> damageTypes;
-    if (!loadDamageTypesFromCompoundFile("resources/registry_data.json", damageTypes)) {
+    if (!loadDamageTypesFromCompoundFile("../resources/registry_data.json", damageTypes)) {
         logMessage("Failed to load damage types from registry_data.json.", LOG_ERROR);
         return;
     }
@@ -314,7 +314,7 @@ bool sendUpdateTagsPacket(ClientConnection& client) {
     writeString(packetData, "minecraft:worldgen/biome"); // Registry Identifier
 
     std::vector<BiomeRegistryEntry> biomeEntries;
-    if (!loadBiomesFromCompoundFile("resources/registry_data.json", biomeEntries)) {
+    if (!loadBiomesFromCompoundFile("../resources/registry_data.json", biomeEntries)) {
         logMessage("Failed to load biomes from registry_data.json.", LOG_ERROR);
         return false;
     }

@@ -85,6 +85,7 @@ Just put the world folder of your Vanilla Minecraft world in the Directory where
 - **Git:** To clone the repository.
 
 ### 🔧 Build Instructions
+#### **Linux:**
 
 1. **Clone the Repository**
     ```bash
@@ -102,10 +103,82 @@ Just put the world folder of your Vanilla Minecraft world in the Directory where
     ```bash
     cmake ..
     ```
+    For Debug Build:
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Debug ..
+    ```
+    For Release Build:
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    ```
 
 4. **Compile the Project**
     ```bash
-    cmake --build .
+    make
+    ```
+
+#### **Windows (MingW & Make):**
+
+1. **Clone the Repository**
+    ```bash
+    git clone https://github.com/Noeli14/MCppServer.git
+    cd MCppServer
+    ```
+
+2. **Create a Build Directory**
+    ```bash
+    mkdir build
+    cd build
+    ```
+
+3. **Generate Build Files with CMake**
+    ```bash
+    cmake .. -G "Unix Makefiles"
+    ```
+   For Debug Build:
+    ```bash
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
+    ```
+   For Release Build:
+    ```bash
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+    ```
+
+4. **Compile the Project**
+    ```bash
+    make
+    ```
+
+#### **Windows (MingW & Ninja):**
+
+1. **Clone the Repository**
+    ```bash
+    git clone https://github.com/Noeli14/MCppServer.git
+    cd MCppServer
+    ```
+
+2. **Create a Build Directory**
+    ```bash
+    mkdir build
+    cd build
+    ```
+
+3. **Generate Build Files with CMake**
+    ```bash
+    cmake .. -G "Ninja"
+    ```
+   For Debug Build:
+    ```bash
+    cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Debug ..
+    ```
+   For Release Build:
+    ```bash
+    cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
+    ```
+
+4. **Compile the Project**
+    ```bash
+    ninja
     ```
 
 ### 🚀 Running the Server
