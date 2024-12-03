@@ -5,13 +5,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Current version)](https://img.shields.io/badge/current_version-1.21.1-green)
 
-Fast and super efficient C++ 1.21.1 Minecraft Server. Compatible with Java Clients.
+Fast and super efficient C++ 1.21.1 Minecraft Server. Compatible with Java Clients. Designed to feel like Vanilla Minecraft, but with the power of C++.
 
 ![image](https://i.postimg.cc/cJsPzxp9/sample-Image-Sized.png)
 
 </div>
 
-MCpp Server is a high-performance Minecraft server developed entirely in C++. Designed for speed, efficiency, and extensive customization, MCpp Server aims to provide a seamless and enjoyable experience for players while maintaining full compatibility with the latest Minecraft features.
+MCpp Server is a high-performance Minecraft server developed entirely in C++. Designed for speed, efficiency, and extensive customization, MCpp Server aims to provide a seamless and enjoyable experience for players while trying to maintain full compatibility with the latest Minecraft features.
+
+<div align="center">
+
+## ⚠️ Important ⚠️
+### This project is in early development and may contain bugs and incomplete features, aswell as temporary and unoptimized code.
+
+</div>
 
 ## 🚀 Features
 
