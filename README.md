@@ -78,8 +78,8 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
 Just put the world folder of your Vanilla Minecraft world in the Directory where the server executable is and it will be loaded when the server starts.
 
 ## ⚠️ Important Notes
-- **Linux Compatibility:** Mojang authentication is currently not functional on Linux, and the Linux version has not been thoroughly tested. Users may encounter issues when running MCpp on Linux systems.
-- **Ongoing Development:** MCpp is actively being developed. Contributions and feedback are welcome to help improve the server.
+- **Linux Compatibility:** Web fetches including Mojang authentication is currently not functional on Linux, and the Linux version has not been thoroughly tested. You may encounter issues when running MCpp Server on Linux systems. To still be able to join the server, you should turn off online mode in the config.json file.
+- **Ongoing Development:** MCpp Server is actively being developed. Contributions and feedback are welcome to help improve the server.
 
 ## 🛠️ Installation & Building
 
@@ -192,27 +192,13 @@ After a successful build, execute the server binary:
    ```
 
 ## 📦 Data Sources
-MCpp utilizes data from the [PrismarineJS](https://github.com/PrismarineJS/minecraft-data) Minecraft Data repository to ensure accurate and up-to-date game mechanics and data.
+MCpp Server utilizes data from the [PrismarineJS](https://github.com/PrismarineJS/minecraft-data) Minecraft Data repository to ensure accurate and up-to-date game mechanics and data.
 
 ## 🤝 Contributing
 Contributions are welcome! Whether it's reporting bugs, suggesting features, or submitting pull requests, your help is greatly appreciated.
-1. **Fork the Repository**
-2. **Create a Feature Branch:**
- ```bash
-git checkout -b feature/YourFeature
-   ```
-3. **Commit Your Changes:**
- ```bash
-git commit -m "Add your feature"
-   ```
-4. **Push to the Branch:**
- ```bash
-git push origin feature/YourFeature
-   ```
-5. **Open a Pull Request**
 
 ## 📄 License
-MCpp is licensed under the MIT License.
+MCpp Server is licensed under the MIT License.
 
 ## 📫 Contact
-For any questions or support, feel free to open an issue on the [GitHub repository](https://github.com/Noeli14/MCppServer)
+For any questions or support, feel free to open an issue or discussion on the [GitHub repository](https://github.com/Noeli14/MCppServer)
