@@ -1,6 +1,7 @@
 <div align="center">
     
-# MCpp Server
+![image](https://i.postimg.cc/MKD69SDB/image.png)
+#
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Current version)](https://img.shields.io/badge/current_version-1.21.1-green)
