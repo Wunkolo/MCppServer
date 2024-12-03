@@ -77,6 +77,8 @@ add_executable(MCppServer src/main.cpp
         src/utils/translation.h
         src/world/boss_bar.cpp
         src/world/boss_bar.h
+        src/world/weather.cpp
+        src/world/weather.h
 )
 
 # Include FetchContent module

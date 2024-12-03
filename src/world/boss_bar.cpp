@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "core/utils.h"
+#include "entities/player.h"
 #include "networking/clientbound_packets.h"
 
 std::array<uint8_t, 16> Bossbar::createBossbar(std::string& id, nbt::tag_compound& title) {

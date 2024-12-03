@@ -89,39 +89,13 @@ void buildAllCommands() {
             // Subcommand: add
             .literal("add", true, true) // /time add
                 .argument("time", 42, true, true) // <time> argument with parserId=42 (minecraft:time)
-                    .setIntegerRange(0, 0) // Set the range of the <time> argument
+                    .setIntegerRange(0, 0) // Set the range of the <time> argument (only min is used)
                     .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                         // Parse the <time> argument
                         std::string timeArg = args[0];
                         int ticksToAdd = 0;
 
-                        try {
-                            // Handle unit suffixes: d, s, t
-                            size_t len = timeArg.length();
-                            char unit = 't'; // default unit
-                            if (len > 0 && (timeArg[len - 1] == 'd' || timeArg[len - 1] == 's' || timeArg[len - 1] == 't')) {
-                                unit = timeArg[len - 1];
-                                timeArg = timeArg.substr(0, len - 1);
-                            }
-
-                            float timeValue = std::stof(timeArg);
-                            switch (unit) {
-                                case 'd':
-                                    ticksToAdd = static_cast<int>(timeValue * 24000);
-                                    break;
-                                case 's':
-                                    ticksToAdd = static_cast<int>(timeValue * 20);
-                                    break;
-                                case 't':
-                                default:
-                                    ticksToAdd = static_cast<int>(timeValue);
-                                    break;
-                            }
-                        }
-                        catch (const std::exception& e) {
-                            sendOutput("Invalid time format.", true, {});
-                            return;
-                        }
+                        ticksToAdd = parseDuration(timeArg);
 
                         worldTime.setTimeOfDay(worldTime.getTimeOfDay() + ticksToAdd);
                         sendOutput("commands.time.set", false, {std::to_string(worldTime.getTimeOfDay())});
@@ -180,41 +154,13 @@ void buildAllCommands() {
 
                 // Set to specific time using <time> argument
                 .argument("time", 42, true, true) // <time> argument with parserId=42 (minecraft:time)
-                    .setIntegerRange(0, 0) // Set the range of the <time> argument
+                    .setIntegerRange(0, 0) // Set the range of the <time> argument (only min is used)
                     .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                         // Parse the <time> argument
                         std::string timeArg = args[0];
                         int newTime = 0;
 
-                        try {
-                            // Handle unit suffixes: d, s, t
-                            size_t len = timeArg.length();
-                            char unit = 't'; // default unit
-                            if (len > 0 && (timeArg[len - 1] == 'd' || timeArg[len - 1] == 's' || timeArg[len - 1] == 't')) {
-                                unit = timeArg[len - 1];
-                                timeArg = timeArg.substr(0, len - 1);
-                            }
-
-                            float timeValue = std::stof(timeArg);
-                            switch (unit) {
-                                case 'd':
-                                    newTime = static_cast<int>(timeValue * 24000);
-                                    break;
-                                case 's':
-                                    newTime = static_cast<int>(timeValue * 20);
-                                    break;
-                                case 't':
-                                default:
-                                    newTime = static_cast<int>(timeValue);
-                                    break;
-                            }
-
-                            if (newTime < 0) newTime += 24000;
-                        }
-                        catch (const std::exception& e) {
-                            sendOutput("Invalid time format.", true, {});
-                            return;
-                        }
+                        newTime = parseDuration(timeArg);
 
                         // Set the server's current time
                         worldTime.setTimeOfDay(newTime);
@@ -887,6 +833,68 @@ void buildAllCommands() {
                 })
             .end() // End "list" subcommand
         .end(); // End "bossbar" command
+
+    // Weather command: /weather <clear|rain|thunder> [duration]
+    builder
+        .literal("weather")
+            .literal("clear", true, true)
+                .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                    weather.setWeather(WeatherType::CLEAR, 0);
+                    sendOutput("commands.weather.set.clear", false, {});
+                })
+                .argument("duration", 42, true, true) // <time> argument with parserId=42 (minecraft:time)
+                    .setIntegerRange(0, 0) // Set the range of the <time> argument (only min is used)
+                    .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                        // Parse the <time> argument
+                        std::string timeArg = args[0];
+                        int duration = 0;
+
+                        duration = parseDuration(timeArg);
+
+                        weather.setWeather(WeatherType::CLEAR, duration);
+                        sendOutput("commands.weather.set.clear", false, {});
+                    })
+                .end() // End <duration> argument
+            .end() // End "clear" subcommand
+            .literal("rain", true, true)
+                .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                    weather.setWeather(WeatherType::RAIN, 0);
+                    sendOutput("commands.weather.set.rain", false, {});
+                })
+                .argument("duration", 42, true, true) // <time> argument with parserId=42 (minecraft:time)
+                    .setIntegerRange(0, 0) // Set the range of the <time> argument (only min is used)
+                    .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                        // Parse the <time> argument
+                        std::string timeArg = args[0];
+                        int duration = 0;
+
+                        duration = parseDuration(timeArg);
+
+                        weather.setWeather(WeatherType::RAIN, duration);
+                        sendOutput("commands.weather.set.rain", false, {});
+                    })
+                .end() // End <duration> argument
+            .end() // End "rain" subcommand
+            .literal("thunder", true, true)
+                .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                    weather.setWeather(WeatherType::THUNDER, 0);
+                    sendOutput("commands.weather.set.thunder", false, {});
+                })
+                .argument("duration", 42, true, true) // <time> argument with parserId=42 (minecraft:time)
+                    .setIntegerRange(0, 0) // Set the range of the <time> argument (only min is used)
+                    .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                        // Parse the <time> argument
+                        std::string timeArg = args[0];
+                        int duration = 0;
+
+                        duration = parseDuration(timeArg);
+
+                        weather.setWeather(WeatherType::THUNDER, duration);
+                        sendOutput("commands.weather.set.thunder", false, {});
+                    })
+                .end() // End <duration> argument
+            .end() // End "thunder" subcommand
+        .end(); // End "weather" command
 
     // Build the command graph
     globalCommandGraph = builder.build();

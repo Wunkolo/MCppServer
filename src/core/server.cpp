@@ -9,6 +9,7 @@
 #include "networking/clientbound_packets.h"
 #include "server/query_server.h"
 #include "server/rcon_server.h"
+#include "utils/translation.h"
 #include "world/world.h"
 
 void tickingSystem() {
@@ -40,6 +41,9 @@ void tickingSystem() {
                 }
             }
         }
+
+        // Update weather
+        weather.handleTick();
 
         // Schedule the next tick
         nextTick += tickInterval;

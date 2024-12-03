@@ -747,22 +747,28 @@ void sendGameEventPacket(ClientConnection& targetClient, GameEvent event, float 
     std::vector<uint8_t> packetData;
     packetData.push_back(GAME_EVENT);
 
-    // Serialize Event (Unsigned Byte)
+    // Event (Unsigned Byte)
     packetData.push_back(static_cast<uint8_t>(event));
 
-    // Serialize Value (Float)
-    // Ensure network byte order (big-endian)
-    uint32_t valueBits;
-    std::memcpy(&valueBits, &value, sizeof(float));
-    packetData.push_back((valueBits >> 24) & 0xFF);
-    packetData.push_back((valueBits >> 16) & 0xFF);
-    packetData.push_back((valueBits >> 8) & 0xFF);
-    packetData.push_back(valueBits & 0xFF);
+    // Value (Float)
+    writeFloat(packetData, value);
 
-    // Send the packet to the target client
-    if (!sendPacket(targetClient, packetData)) {
-        logMessage("Failed to send Game Event packet to client.", LOG_ERROR);
-    }
+    // Send the packet
+    sendPacket(targetClient, packetData);
+}
+
+void sendGameEvent(GameEvent event, float value) {
+    std::vector<uint8_t> packetData;
+    packetData.push_back(GAME_EVENT);
+
+    // Event (Unsigned Byte)
+    packetData.push_back(static_cast<uint8_t>(event));
+
+    // Value (Float)
+    writeFloat(packetData, value);
+
+    // Broadcast to all clients
+    broadcastToOthers(packetData);
 }
 
 void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode) {

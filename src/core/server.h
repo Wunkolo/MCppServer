@@ -10,6 +10,7 @@
 #include "server/rcon_server.h"
 #include "utils/thread_pool.h"
 #include "world/boss_bar.h"
+#include "world/weather.h"
 #include "world/world_border.h"
 #include "world/world_time.h"
 
@@ -70,6 +71,7 @@ inline std::unique_ptr<RCONServer> rconServer;
 inline WorldBorder worldBorder;
 inline WorldTime worldTime;
 inline std::unordered_map<std::array<uint8_t, 16>, Bossbar, ArrayHash, ArrayEqual> bossBars;
+inline Weather weather;
 
 inline std::string consoleLang;
 

@@ -121,5 +121,6 @@ std::string removeFormattingCodes(const std::string &input);
 std::string colorBossbarMessage(const Bossbar& bossbar);
 BossbarColor stringToBossbarColor(const std::string& color);
 BossbarDivision stringToBossbarDivision(const std::string& division);
+int64_t parseDuration(const std::string& durationStr);
 
 #endif // UTILS_H

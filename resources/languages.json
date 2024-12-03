@@ -64,6 +64,9 @@
     "commands.bossbar.set.visibility.unchanged.visible": "Nothing changed. The bossbar is already visible",
     "commands.bossbar.set.visible.success.hidden": "Custom bossbar {0} is now hidden",
     "commands.bossbar.set.visible.success.visible": "Custom bossbar {0} is now visible",
-    "commands.bossbar.unknown": "No bossbar exists with the ID '{0}'"
+    "commands.bossbar.unknown": "No bossbar exists with the ID '{0}'",
+    "commands.weather.set.clear": "Set the weather to clear",
+    "commands.weather.set.rain": "Set the weather to rain",
+    "commands.weather.set.thunder": "Set the weather to rain & thunder"
   }
 }

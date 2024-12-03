@@ -56,6 +56,7 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
     - [x] World Border
     - [x] World Time
     - [x] Bossbar
+    - [x] Weather
     - [ ] Scoreboard
     - [ ] World Saving
 - Player
@@ -71,6 +72,7 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
     - [ ] Entity AI
     - [ ] Boss
     - [ ] Minecart
+    - [ ] Lightning Bolt
 
 ## 🌍 Use Pre-Generated World
 Just put the world folder of your Vanilla Minecraft world in the Directory where the server executable is and it will be loaded when the server starts.

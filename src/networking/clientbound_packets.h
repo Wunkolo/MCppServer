@@ -1,15 +1,17 @@
 #ifndef CLIENTBOUND_PACKETS_H
 #define CLIENTBOUND_PACKETS_H
 #include <cstdint>
+#include <memory>
+#include <vector>
 
-#include "client.h"
+#include "network.h"
 #include "packet_ids.h"
 #include "core/server.h"
-#include "entities/player.h"
 #include "enums/enums.h"
-#include "registries/registry_manager.h"
 #include "utils/translation.h"
 
+struct ClientConnection;
+class RegistryManager;
 class Bossbar;
 struct WorldBorder;
 struct EquipmentSlot;
@@ -35,6 +37,7 @@ void sendSpawnEntityPacket(ClientConnection& client, const std::shared_ptr<Entit
 void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t entityStatus);
 void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Player>& playersToUpdate, uint8_t actions);
 void sendGameEventPacket(ClientConnection& targetClient, GameEvent event, float value);
+void sendGameEvent(GameEvent event, float value);
 void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode);
 void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs);
 void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, const std::vector<std::string>* args = nullptr);

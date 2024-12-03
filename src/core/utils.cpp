@@ -930,3 +930,36 @@ BossbarDivision stringToBossbarDivision(const std::string& division) {
     }
     return NO_DIVISION;
 }
+
+int64_t parseDuration(const std::string& durationStr) {
+    int64_t ticks = 0;
+    std::string durationStrCopy = durationStr;
+    try {
+        // Handle unit suffixes: d, s, t
+        size_t len = durationStrCopy.length();
+        char unit = 't'; // default unit
+        if (len > 0 && (durationStrCopy[len - 1] == 'd' || durationStrCopy[len - 1] == 's' || durationStrCopy[len - 1] == 't')) {
+            unit = durationStrCopy[len - 1];
+            durationStrCopy = durationStrCopy.substr(0, len - 1);
+        }
+
+        float timeValue = std::stof(durationStrCopy);
+        switch (unit) {
+            case 'd':
+                ticks = static_cast<int>(timeValue * 24000);
+            break;
+            case 's':
+                ticks = static_cast<int>(timeValue * 20);
+            break;
+            case 't':
+            default:
+                ticks = static_cast<int>(timeValue);
+            break;
+        }
+    }
+    catch (const std::exception& e) {
+        return 0;
+    }
+
+    return ticks;
+}
