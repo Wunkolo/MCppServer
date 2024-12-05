@@ -38,8 +38,8 @@ std::string httpGet(const std::string& host, const std::string& path) {
         logMessage("No CA certificates found on system. SSL connections may fail.", LOG_ERROR);
     }
     cli.enable_server_certificate_verification(true);
-    cli.set_follow_location(true);
 #endif
+    cli.set_follow_location(true);
 
     auto res = cli.Get(path.c_str());
 
@@ -169,8 +169,8 @@ bool authenticatePlayer(const std::string& username, const std::string& serverHa
         logMessage("No CA certificates fouifnd on system. SSL connections may fail.", LOG_ERROR);
     }
     sessionClient.enable_server_certificate_verification(true);
-    sessionClient.set_follow_location(true);
 #endif
+    sessionClient.set_follow_location(true);
 
     for (int tryCount = 0; tryCount < MAX_RETRIES; ++tryCount) {
         auto res = sessionClient.Get(endpoint.c_str());
