@@ -7,6 +7,7 @@
 #include "network.h"
 #include "packet_ids.h"
 #include "core/server.h"
+#include "entities/player.h"
 #include "enums/enums.h"
 #include "utils/translation.h"
 
@@ -19,7 +20,6 @@ struct MetadataEntry;
 enum class GameEvent : uint8_t;
 class Entity;
 struct Position;
-struct Player;
 
 void sendRemoveEntityPacket(const int32_t& entityID);
 void sendPlayerInfoRemove(const Player& player);
