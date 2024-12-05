@@ -21,6 +21,9 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
 
 </div>
 
+## 🙌 Progress
+### Want to see what I’m working on? Check out the [discussion](https://github.com/Noeli14/MCppServer/discussions/categories/show-and-tell) tab under Show and Tell!
+
 ## 🚀 Features
 
 ### 🏎️ Performance
