@@ -94,7 +94,7 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
 Just put the world folder of your Vanilla Minecraft world in the Directory where the server executable is and it will be loaded when the server starts.
 
 ## ⚠️ Important Notes
-- **Linux Compatibility:** Web fetches including Mojang authentication is currently not functional on Linux, and the Linux version has not been thoroughly tested. You may encounter issues when running MCpp Server on Linux systems. To still be able to join the server, you should turn off online mode in the config.json file.
+- **Linux Compatibility:** The Linux version has not been thoroughly tested. You may encounter issues when running MCpp Server on Linux systems. To still be able to join the server, you should turn off online mode in the config.json file.
 - **Ongoing Development:** MCpp Server is actively being developed. Contributions and feedback are welcome to help improve the server.
 
 ## 🛠️ Installation & Building

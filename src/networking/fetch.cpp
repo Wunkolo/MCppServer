@@ -13,8 +13,31 @@ constexpr int RETRY_DELAY_MS = 1000; // 1 second
 #include "cppcodec/base64_rfc4648.hpp"
 #include "../thirdparty/httplib.h"
 
+std::vector<std::string> ca_paths = {
+        "/etc/ssl/certs/ca-certificates.crt",               // Debian/Ubuntu/Gentoo etc.
+        "/etc/pki/tls/certs/ca-bundle.crt",                 // Fedora/RHEL 6
+        "/etc/ssl/ca-bundle.pem",                           // OpenSUSE
+        "/etc/pki/tls/cacert.pem",                          // OpenELEC
+        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",// CentOS/RHEL 7
+        "/etc/ssl/cert.pem",                                // Alpine Linux, macOS
+};
+
 std::string httpGet(const std::string& host, const std::string& path) {
     httplib::SSLClient cli(host.c_str());
+
+    bool set_ca_cert = false;
+    for (const auto& path : ca_paths) {
+        if (access(path.c_str(), R_OK) == 0) {
+            cli.set_ca_cert_path(path.c_str());
+            set_ca_cert = true;
+            break;
+        }
+    }
+    if (!set_ca_cert) {
+        logMessage("No CA certificates found on system. SSL connections may fail.", LOG_ERROR);
+    }
+    cli.enable_server_certificate_verification(true);
+    cli.set_follow_location(true);
 
     auto res = cli.Get(path.c_str());
 
@@ -127,9 +150,23 @@ std::string extractSkinURL(const std::string& texturesBase64) {
 }
 
 bool authenticatePlayer(const std::string& username, const std::string& serverHash, const std::string& ipAddress, std::string& outUUID, std::string& outName, std::pair<std::string, std::string>& skinTexturesPair) {
-    httplib::Client sessionClient("https://sessionserver.mojang.com");
+    httplib::Client sessionClient("sessionserver.mojang.com");
 
-    std::string endpoint = "/session/minecraft/hasJoined?username=" + username + "&serverId=" + serverHash + "&ip=" + ipAddress;
+    std::string endpoint = "/session/minecraft/hasJoined?username=" + httplib::detail::encode_query_param(username) + "&serverId=" + httplib::detail::encode_query_param(serverHash);
+
+    bool set_ca_cert = false;
+    for (const auto& path : ca_paths) {
+        if (access(path.c_str(), R_OK) == 0) {
+            sessionClient.set_ca_cert_path(path.c_str());
+            set_ca_cert = true;
+            break;
+        }
+    }
+    if (!set_ca_cert) {
+        logMessage("No CA certificates found on system. SSL connections may fail.", LOG_ERROR);
+    }
+    sessionClient.enable_server_certificate_verification(true);
+    sessionClient.set_follow_location(true);
 
     for (int tryCount = 0; tryCount < MAX_RETRIES; ++tryCount) {
         auto res = sessionClient.Get(endpoint.c_str());
