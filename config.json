@@ -7,7 +7,7 @@
   "icon": "resources/server-icon.png",
   "world_type": "flat",
   "flatworld_preset": "overworld",
-  "view_distance": 10,
+  "view_distance": 12,
   "online_mode": true,
   "enable_encryption": true,
   "enable_compression": true,

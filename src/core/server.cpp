@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "commands/CommandBuilder.h"
+#include "entities/item_entity.h"
 #include "networking/clientbound_packets.h"
 #include "server/query_server.h"
 #include "server/rcon_server.h"
@@ -44,6 +45,182 @@ void tickingSystem() {
 
         // Update weather
         weather.handleTick();
+        std::unordered_map<int32_t, std::shared_ptr<Entity>> entities = entityManager.getAllEntities();
+        for (auto &entity: entityManager.getAllEntities() | std::views::values) {
+            if (entity->type != EntityType::Item) {
+                continue; // Only process item entities
+            }
+
+            auto item = std::static_pointer_cast<Item>(entity);
+
+            if (item->getCooldown() > 0) {
+                item->setCooldown(item->getCooldown() - 1);
+            }
+
+            double newMotionY{};
+            {
+                // Parameters for velocity calculation
+                double initialVelocityY = item->getMotionY();
+                double dragY = item->getDragY();
+                double acceleration = GRAVITY; // Gravity acts as acceleration
+                int ticksPassed = 1;
+                DragApplicationOrder order = AfterAcceleration;
+
+                // Update velocity with gravity
+                newMotionY = calculateFinalVelocity(initialVelocityY, dragY, acceleration, ticksPassed, order) - acceleration;
+                item->setMotion(item->getMotionX(), newMotionY, item->getMotionZ());
+            }
+
+            // Calculate potential new position
+            double potentialPosX = item->getPositionX() + item->getMotionX();
+            double potentialPosY = item->getPositionY() + item->getMotionY();
+            double potentialPosZ = item->getPositionZ() + item->getMotionZ();
+
+            // --- Collision Detection for Y-axis ---
+            // Temporarily set new position for collision check
+            Item tempItemY = *item;
+            double oldPosY = item->getPositionY();
+            tempItemY.setPosition(item->getPositionX(), potentialPosY, item->getPositionZ());
+
+            // Check for collision
+            BoundingBox collidedBlockBoxY;
+            bool hasCollidedY = checkCollision(tempItemY, collidedBlockBoxY, Axis::Y);
+
+            if (hasCollidedY) {
+                double adjustedPosY;
+                if (item->getMotionY() > 0.0) {
+                    adjustedPosY = collidedBlockBoxY.minY - 0.25;
+                } else {
+                    adjustedPosY = collidedBlockBoxY.maxY;
+                }
+
+                // Set the item's position to the adjusted position
+                item->setPosition(potentialPosX, adjustedPosY, potentialPosZ);
+
+                // Reset Y-velocity to prevent further downward movement
+                item->setMotion(item->getMotionX(), 0.0, item->getMotionZ());
+
+                // Set on-ground flag
+                item->setOnGround(true);
+            } else {
+                // No collision; update position normally
+                item->setPosition(item->getPositionX(), potentialPosY, item->getPositionZ());
+                item->setOnGround(false);
+            }
+
+            // --- Collision Detection for X-axis ---
+            // Temporarily set new position for collision check
+            Item tempItemX = *item;
+            double oldPosX = item->getPositionX();
+            tempItemX.setPosition(potentialPosX, item->getPositionY(), item->getPositionZ());
+
+            // Check for collision
+            BoundingBox collidedBlockBoxX;
+            bool hasCollidedX = checkCollision(tempItemX, collidedBlockBoxX, Axis::X);
+
+            if (hasCollidedX) {
+                double adjustedPosX;
+                if (item->getMotionX() > 0.0) {
+                    adjustedPosX = collidedBlockBoxX.minX - 0.125;
+                } else {
+                    adjustedPosX = collidedBlockBoxX.maxX + 0.125;
+                }
+
+                // Set the item's position to the adjusted position
+                item->setPosition(adjustedPosX, item->getPositionY(), item->getPositionZ());
+
+                // Reset Y-velocity to prevent further downward movement
+                item->setMotion(0.0, item->getMotionY(), item->getMotionZ());
+
+                // Set on-ground flag
+                item->setOnGround(true);
+            } else {
+                // No collision; update position normally
+                item->setPosition(potentialPosX, item->getPositionY(), item->getPositionZ());
+                item->setOnGround(false);
+            }
+
+            // --- Collision Detection for Z-axis ---
+            // Temporarily set new position for collision check
+            Item tempItemZ = *item;
+            double oldPosZ = item->getPositionZ();
+            tempItemX.setPosition(item->getPositionX(), item->getPositionY(), potentialPosZ);
+
+            // Check for collision
+            BoundingBox collidedBlockBoxZ;
+            bool hasCollidedZ = checkCollision(tempItemX, collidedBlockBoxZ, Axis::Z);
+
+            if (hasCollidedZ) {
+                double adjustedPosZ;
+                if (item->getMotionZ() > 0.0) {
+                    adjustedPosZ = collidedBlockBoxZ.minZ - 0.125;
+                } else {
+                    adjustedPosZ = collidedBlockBoxZ.maxZ + 0.125;
+                }
+
+                // Set the item's position to the adjusted position
+                item->setPosition(item->getPositionX(), item->getPositionY(), adjustedPosZ);
+
+                // Reset Y-velocity to prevent further downward movement
+                item->setMotion(item->getMotionX(), item->getMotionY(), 0.0);
+
+                // Set on-ground flag
+                item->setOnGround(true);
+            } else {
+                // No collision; update position normally
+                item->setPosition(item->getPositionX(), item->getPositionY(), potentialPosZ);
+                item->setOnGround(false);
+            }
+
+            // Apply drag to horizontal motion
+            double currentDragX = item->getDragX();
+
+            double newMotionX = calculateFinalVelocity(item->getMotionX(), hasCollidedY ? 0.454 : currentDragX, 0, 1, AfterAcceleration);
+            double newMotionZ = calculateFinalVelocity(item->getMotionZ(), hasCollidedY ? 0.454 : currentDragX, 0, 1, AfterAcceleration);
+
+            item->setMotion(newMotionX, item->getMotionY(), newMotionZ);
+
+            // Clamp very small velocities to zero to prevent indefinite drifting
+            constexpr double MIN_VELOCITY = 0.001;
+            if (std::abs(newMotionX) < MIN_VELOCITY) {
+                item->setMotion(0.0, item->getMotionY(), item->getMotionZ());
+            }
+            if (std::abs(newMotionY) < MIN_VELOCITY) {
+                item->setMotion(item->getMotionX(), 0.0, item->getMotionZ());
+            }
+            if (std::abs(newMotionZ) < MIN_VELOCITY) {
+                item->setMotion(item->getMotionX(), item->getMotionY(), 0.0);
+            }
+
+            double relativeDeltaX = hasCollidedX ? (item->getPositionX() - oldPosX) : item->getMotionX();
+            double relativeDeltaY = hasCollidedY ? (item->getPositionY() - oldPosY) : item->getMotionY();
+            double relativeDeltaZ = hasCollidedZ ? (item->getPositionZ() - oldPosZ) : item->getMotionZ();
+
+            auto deltaXShort = static_cast<short>(relativeDeltaX  * 4096.0);
+            auto deltaYShort = static_cast<short>(relativeDeltaY * 4096.0);
+            auto deltaZShort = static_cast<short>(relativeDeltaZ * 4096.0);
+
+            // Send relative move packet to clients
+            sendEntityRelativeMovePacket(item, deltaXShort, deltaYShort, deltaZShort);
+            sendEntityVelocity(item);
+            // Items crossing a block boundary are processed every 2 ticks
+            if (tickCount % 2 == 0 &&
+            (static_cast<int32_t>(std::floor(item->getPositionX())) != static_cast<int32_t>(std::floor(oldPosX)) ||
+             static_cast<int32_t>(std::floor(item->getPositionZ())) != static_cast<int32_t>(std::floor(oldPosZ))))
+            {
+                item->tryMerge();
+            }
+        }
+
+        if (tickCount % 40 == 0) {
+            for (auto &entity: entityManager.getAllEntities() | std::views::values) {
+                if (entity->type != EntityType::Item) {
+                    continue; // Only process item entities
+                }
+                auto item = std::static_pointer_cast<Item>(entity);
+                item->tryMerge();
+            }
+        }
 
         // Schedule the next tick
         nextTick += tickInterval;
@@ -127,6 +304,7 @@ void runServer() {
     items = loadItems("../resources/items.json");
     itemIDs = loadItemIDs("../resources/items.json");
     translations = loadTranslations("../resources/languages.json");
+    loadCollisions("../resources/blockCollisionShapes.json");
 
     auto endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedSeconds = endTime - startTime;

@@ -28,7 +28,7 @@ struct BlockData {
     int minStateId;
     int maxStateId;
     std::vector<BlockState> states;
-    // TODO: Drops
+    std::vector<uint16_t> drops;
     std::string boundingBox;
 };
 
@@ -42,9 +42,22 @@ struct BiomeData {
     int color;
 };
 
+struct BoundingBox {
+    double minX, minY, minZ;
+    double maxX, maxY, maxZ;
+
+    bool intersects(const BoundingBox& other) const {
+        return (minX < other.maxX && maxX > other.minX) &&
+               (minY < other.maxY && maxY > other.minY) &&
+               (minZ < other.maxZ && maxZ > other.minZ);
+    }
+
+};
+
 std::unordered_map<std::string, BiomeData> loadBiomes(const std::string& filePath);
 std::unordered_map<std::string, BlockData> loadBlocks(const std::string& filePath);
 std::unordered_map<std::string, ItemData> loadItems(const std::string& filePath);
 std::unordered_map<int, ItemData> loadItemIDs(const std::string& filePath);
+void loadCollisions(const std::string& filePath);
 
 #endif //DATA_H

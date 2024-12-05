@@ -11,6 +11,7 @@
 #include "registries/registry_manager.h"
 #include "core/server.h"
 #include "core/utils.h"
+#include "entities/item_entity.h"
 #include "registries/wolf_variant.h"
 #include "utils/translation.h"
 #include "world/boss_bar.h"
@@ -375,7 +376,7 @@ void sendJoinGamePacket(ClientConnection& client, int32_t entityID) {
     writeVarInt(packetData, 100);
 
     // 6. View Distance (VarInt)
-    writeVarInt(packetData, 12);
+    writeVarInt(packetData, serverConfig.viewDistance);
 
     // 7. Simulation Distance (VarInt)
     writeVarInt(packetData, 10);
@@ -474,7 +475,25 @@ void sendSynchronizePlayerPositionPacket(ClientConnection& client, const std::sh
     client.state = ClientState::AwaitingTeleportConfirm;
 }
 
-void sendEntityRelativeMovePacket(const std::shared_ptr<Player>& player, short deltaX, short deltaY, short deltaZ) {
+void sendEntityRelativeMovePacket(const std::shared_ptr<Entity>& entity, short deltaX, short deltaY, short deltaZ) {
+    std::vector<uint8_t> packetData;
+    packetData.push_back(UPDATE_ENTITY_POSITION);
+
+    // Entity ID (VarInt)
+    writeVarInt(packetData, entity->entityID);
+
+    writeShort(packetData, deltaX);
+    writeShort(packetData, deltaY);
+    writeShort(packetData, deltaZ);
+
+    // On Ground (Boolean)
+    packetData.push_back(entity->onGround ? 0x01 : 0x00);
+
+    // Broadcast to all other clients
+    broadcastToOthers(packetData);
+}
+
+void sendPlayerRelativeMovePacket(const std::shared_ptr<Player>& player, short deltaX, short deltaY, short deltaZ) {
     std::vector<uint8_t> packetData;
     packetData.push_back(UPDATE_ENTITY_POSITION);
 
@@ -577,6 +596,51 @@ void sendEntityTeleportPacket(const std::shared_ptr<Player>& player) {
 
     // Broadcast to all other clients
     broadcastToOthers(packetData, player->uuidString);
+}
+
+void sendSpawnEntityPacket(const std::shared_ptr<Entity>& entity) {
+    std::vector<uint8_t> packetData;
+    packetData.push_back(SPAWN_ENTITY);
+
+    // Entity ID (VarInt)
+    writeVarInt(packetData, entity->entityID);
+
+    // Entity UUID (UUID - 16 bytes)
+    packetData.insert(packetData.end(), entity->uuid.begin(), entity->uuid.end());
+
+    // Type (VarInt) - Entity type ID from minecraft:entity_type registry
+    writeVarInt(packetData, static_cast<int32_t>(entity->type));
+
+    // X, Y, Z (Double)
+    writeDouble(packetData, entity->getPositionX());
+    writeDouble(packetData, entity->getPositionY());
+    writeDouble(packetData, entity->getPositionZ());
+
+    // Pitch, Yaw, Head Yaw (Angles as bytes)
+    auto pitch = static_cast<uint8_t>(entity->rotation.pitch / (360.0f / 256.0f));
+    auto yaw = static_cast<uint8_t>(entity->rotation.yaw / (360.0f / 256.0f));
+    auto headYaw = static_cast<uint8_t>(entity->rotation.headYaw / (360.0f / 256.0f));
+
+    packetData.push_back(pitch);
+    packetData.push_back(yaw);
+    packetData.push_back(headYaw);
+
+    // Data - Additional data depending on entity type
+    std::vector<uint8_t> additionalData;
+    entity->serializeAdditionalData(additionalData);
+    writeVarInt(packetData, static_cast<int32_t>(additionalData.size()));
+    packetData.insert(packetData.end(), additionalData.begin(), additionalData.end());
+
+    // Velocity (Fixed-point, scaled by 8000)
+    auto fixedMotionX = static_cast<int16_t>(entity->getMotionX() * 8000);
+    auto fixedMotionY = static_cast<int16_t>(entity->getMotionY() * 8000);
+    auto fixedMotionZ = static_cast<int16_t>(entity->getMotionZ() * 8000);
+    writeShort(packetData, fixedMotionX);
+    writeShort(packetData, fixedMotionY);
+    writeShort(packetData, fixedMotionZ);
+
+    // Build and send the packet with length prefix
+    broadcastToOthers(packetData);
 }
 
 void sendSpawnEntityPacket(ClientConnection& client, const std::shared_ptr<Entity>& entity) {
@@ -931,6 +995,34 @@ bool sendKeepAlivePacket(ClientConnection& client) {
 
     // Build and send the packet
     return sendPacket(client, packetData);
+}
+
+void sendEntityMetadataPacket(const std::vector<MetadataEntry>& metadataEntries, int32_t entityID) {
+    std::vector<uint8_t> packetData = { };
+
+    // Packet ID for Entity Metadata
+    packetData.push_back(SET_ENTITY_METADATA);
+
+    // Entity ID (VarInt)
+    writeVarInt(packetData, entityID);
+
+    // Add each Metadata Entry
+    for (const auto& entry : metadataEntries) {
+        // Index (Unsigned Byte)
+        packetData.push_back(entry.index);
+
+        // Type (VarInt Enum)
+        writeVarInt(packetData, static_cast<int32_t>(entry.type));
+
+        // Value (Varies based on type)
+        packetData.insert(packetData.end(), entry.value.begin(), entry.value.end());
+    }
+
+    // Terminating Entry (0xFF)
+    packetData.push_back(0xFF);
+
+    // Broadcast the packet to all other clients
+    broadcastToOthers(packetData);
 }
 
 void sendEntityMetadataPacket(const std::shared_ptr<Player>& player, const std::vector<MetadataEntry>& metadataEntries, int32_t entityID) {
@@ -1394,5 +1486,73 @@ void sendCommandSuggestionsResponse(ClientConnection& client, int32_t transactio
         writeString(packet, suggestion);
         writeByte(packet, 0x00); // No text component
     }
+    sendPacket(client, packet);
+}
+
+void sendBundleDelimiter() {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, BUNDLE_DELIMITER);
+    broadcastToOthers(packet);
+}
+
+void sendBundleDelimiter(ClientConnection& client) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, BUNDLE_DELIMITER);
+    sendPacket(client, packet);
+}
+
+void sendEntityVelocity(const std::shared_ptr<Entity>& entity) {
+    std::vector<uint8_t> packet;
+    writeVarInt(packet, SET_ENTITY_VELOCITY);
+
+    // Entity ID (VarInt)
+    writeVarInt(packet, entity->entityID);
+
+    // Velocity X (Short)
+    writeShort(packet, static_cast<int16_t>(entity->getMotionX() * 8000));
+
+    // Velocity Y (Short)
+    writeShort(packet, static_cast<int16_t>(entity->getMotionY() * 8000));
+
+    // Velocity Z (Short)
+    writeShort(packet, static_cast<int16_t>(entity->getMotionZ() * 8000));
+
+    // Broadcast to all clients
+    broadcastToOthers(packet);
+}
+
+void sendPickUpItem(const std::shared_ptr<Entity>& collectedEntity, const std::shared_ptr<Entity>& collectorEntity, int8_t count) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, PICK_UP_ITEM);
+
+    // Collected Entity ID (VarInt)
+    writeVarInt(packet, collectedEntity->entityID);
+
+    // Collector Entity ID (VarInt)
+    writeVarInt(packet, collectorEntity->entityID);
+
+    // Count (VarInt)
+    writeVarInt(packet, count);
+
+    // Broadcast to all clients
+    broadcastToOthers(packet);
+}
+
+void SendSetContainerSlot(ClientConnection& client, const int8_t windowID, const int32_t stateID, const uint16_t slotID, const SlotData& slot) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_CONTAINER_SLOT);
+
+    // Window ID (Byte)
+    writeByte(packet, windowID);
+
+    // State ID (VarInt)
+    writeVarInt(packet, stateID);
+
+    // Slot ID (Short)
+    writeShort(packet, slotID);
+
+    // Slot (Slot)
+    writeSlotSimple(packet, slot);
+
     sendPacket(client, packet);
 }

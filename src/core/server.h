@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "data/data.h"
+#include "entities/entity.h"
 #include "entities/entity_manager.h"
 #include "world/flatworld.h"
 #include "server/rcon_server.h"
@@ -15,6 +16,7 @@
 #include "world/world_time.h"
 
 #define PRINT_DEBUG 1
+constexpr double GRAVITY = 0.04;
 
 class RootNode;
 struct ClientConnection;
@@ -74,5 +76,8 @@ inline std::unordered_map<std::array<uint8_t, 16>, Bossbar, ArrayHash, ArrayEqua
 inline Weather weather;
 
 inline std::string consoleLang;
+
+inline std::unordered_map<std::string, std::vector<int>> blockNameToShapeIDs;
+inline std::unordered_map<int, std::vector<BoundingBox>> shapeIDToShapes;
 
 #endif // SERVER_H

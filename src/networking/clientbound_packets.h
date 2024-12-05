@@ -28,11 +28,13 @@ void sendWorldEventPacket(ClientConnection& client, const int& worldEvent, const
 bool sendUpdateTagsPacket(ClientConnection& client);
 void sendJoinGamePacket(ClientConnection& client, int32_t entityID);
 void sendSynchronizePlayerPositionPacket(ClientConnection& client, const std::shared_ptr<Player> &player);
-void sendEntityRelativeMovePacket(const std::shared_ptr<Player>& player, short deltaX, short deltaY, short deltaZ);
+void sendEntityRelativeMovePacket(const std::shared_ptr<Entity>& entity, short deltaX, short deltaY, short deltaZ);
+void sendPlayerRelativeMovePacket(const std::shared_ptr<Player>& player, short deltaX, short deltaY, short deltaZ);
 void sendEntityLookAndRelativeMovePacket(const std::shared_ptr<Player>& player, short deltaX, short deltaY, short deltaZ, float yaw, float pitch);
 void sendEntityRotationPacket(const std::shared_ptr<Player>& player);
 void sendHeadRotationPacket(const std::shared_ptr<Player>& player);
 void sendEntityTeleportPacket(const std::shared_ptr<Player>& player);
+void sendSpawnEntityPacket(const std::shared_ptr<Entity>& entity);
 void sendSpawnEntityPacket(ClientConnection& client, const std::shared_ptr<Entity>& entity);
 void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t entityStatus);
 void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Player>& playersToUpdate, uint8_t actions);
@@ -50,6 +52,7 @@ void sendSetCenterChunkPacket(ClientConnection& targetClient, int32_t chunkX, in
 void sendResourcePacks(ClientConnection& client);
 void sendRemoveResourcePacks(ClientConnection& client, const std::vector<std::string>& uuidsToRemove = {});
 bool sendKeepAlivePacket(ClientConnection& client);
+void sendEntityMetadataPacket(const std::vector<MetadataEntry>& metadataEntries, int32_t entityID);
 void sendEntityMetadataPacket(const std::shared_ptr<Player>& player, const std::vector<MetadataEntry>& metadataEntries, int32_t entityID);
 void sendEntityAnimation(const std::shared_ptr<Player> & player, EntityAnimation animation);
 void sendAcknowledgeBlockChange(ClientConnection& client, size_t sequenceID);
@@ -71,6 +74,11 @@ void sendSetBorderWarningDelay(int32_t warningTime);
 void sendSetBorderWarningDistance(int32_t warningBlocks);
 void sendBossbar(Bossbar& bossbar, int32_t action);
 void sendCommandSuggestionsResponse(ClientConnection& client, int32_t transactionID, const std::vector<std::string>& suggestions, int32_t start);
+void sendBundleDelimiter(ClientConnection& client);
+void sendBundleDelimiter();
+void sendEntityVelocity(const std::shared_ptr<Entity>& entity);
+void sendPickUpItem(const std::shared_ptr<Entity>& collectedEntity, const std::shared_ptr<Entity>& collectorEntity, int8_t count);
+void SendSetContainerSlot(ClientConnection& client, const int8_t windowID, const int32_t stateID, const uint16_t slotID, const SlotData& slot);
 
 template<typename... Args>
 void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, Args&&... args) {

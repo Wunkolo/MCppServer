@@ -73,6 +73,7 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
     - [x] Movement
     - [x] Inventory
     - [x] Equipment
+    - [x] Item Pickup
     - [ ] Combat
 - Entities
     - [x] Players
@@ -81,6 +82,10 @@ MCpp Server is a high-performance Minecraft server developed entirely in C++. De
     - [ ] Boss
     - [ ] Minecart
     - [ ] Lightning Bolt
+- Physics
+    - [x] Item Physics
+    - [ ] Falling Blocks
+
 
 ## 🌍 Use Pre-Generated World
 Just put the world folder of your Vanilla Minecraft world in the Directory where the server executable is and it will be loaded when the server starts.

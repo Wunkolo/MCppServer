@@ -20,6 +20,8 @@
 #include "entities/player.h"
 #include "registries/registry_manager.h"
 #include "core/server.h"
+#include "entities/entity_factory.h"
+#include "entities/item_entity.h"
 #include "entities/slot_data.h"
 #include "utils/translation.h"
 
@@ -49,11 +51,30 @@ void disconnectClient(const Player& player, const std::string& reason, bool disc
     connectedClientsMutex.lock();
     connectedClients.erase(player.uuidString);
     connectedClientsMutex.unlock();
-    entityManager.removeEntity(player.uuidString);
 
     sendPlayerInfoRemove(player);
-    sendRemoveEntityPacket(player.entityID);
+
+    std::lock_guard lock(chunkMapMutex);
+    for (auto it = chunkViewersMap.begin(); it != chunkViewersMap.end(); )
+    {
+        // Remove the player from the vector
+        auto& viewers = it->second;
+        std::erase_if(viewers,
+                      [&player](const std::shared_ptr<Player>& p) { return p == player; });
+
+        // If the vector is empty, erase the map entry
+        if (viewers.empty())
+        {
+            it = chunkViewersMap.erase(it); // Erase and advance iterator
+        }
+        else
+        {
+            ++it; // Just advance the iterator
+        }
+    }
+
     sendTranslatedChatMessage("multiplayer.player.left", false, "yellow", nullptr, true, player.name);
+    entityManager.removeEntity(player.uuidString);
 }
 
 void handleStatusRequest(ClientConnection& client) {
@@ -172,7 +193,7 @@ bool handleZeroPacket(ClientConnection& client, const std::vector<uint8_t>& pack
 
     bool isTeleportConfirm = false;
     {
-        std::lock_guard<std::mutex> lock(client.mutex);
+        std::lock_guard lock(client.mutex);
         if (client.pendingTeleportIDs.contains(teleportID)) {
             isTeleportConfirm = true;
             client.pendingTeleportIDs.erase(teleportID);
@@ -285,6 +306,24 @@ void handlePlayerPositionAndRotationPacket(ClientConnection& client, const std::
         sendEntityTeleportPacket(player);
     }
     sendHeadRotationPacket(player);
+
+    for (const auto &val: entityManager.getAllEntities() | std::views::values) {
+        if (val->type == EntityType::Item) {
+            auto item = std::static_pointer_cast<Item>(val);
+            BoundingBox playerBox = player->getPickUpBox();
+            BoundingBox itemBox = item->getHitBox();
+
+            if (item->getCooldown() == 0 && playerBox.intersects(itemBox)) {
+                const uint8_t itemsToAdd = player->canItemBeAddedToInventory(item->id(), item->getCount());
+                if (itemsToAdd > 0) {
+                    sendPickUpItem(item, player, itemsToAdd);
+                    entityManager.removeEntity(item->uuidString);
+                    player->addItemToInventory(item->id(), itemsToAdd);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void handlePlayerPosition(ClientConnection& client, const std::vector<uint8_t>& vector, size_t& index, const std::shared_ptr<Player>& player) {
@@ -348,10 +387,28 @@ void handlePlayerPosition(ClientConnection& client, const std::vector<uint8_t>& 
     // Decide which packet to send based on movement magnitude
     if (std::abs(deltaX) < 7.999755859375 && std::abs(deltaY) < 7.999755859375 && std::abs(deltaZ) < 7.999755859375) {
         // Small movement: Use Relative Move
-        sendEntityRelativeMovePacket(player, deltaXFixed, deltaYFixed, deltaZFixed);
+        sendPlayerRelativeMovePacket(player, deltaXFixed, deltaYFixed, deltaZFixed);
     } else {
         // Large movement: Use Teleport
         sendEntityTeleportPacket(player);
+    }
+
+    for (const auto &val: entityManager.getAllEntities() | std::views::values) {
+        if (val->type == EntityType::Item) {
+            auto item = std::static_pointer_cast<Item>(val);
+            BoundingBox playerBox = player->getPickUpBox();
+            BoundingBox itemBox = item->getHitBox();
+
+            if (item->getCooldown() == 0 && playerBox.intersects(itemBox)) {
+                const uint8_t itemsToAdd = player->canItemBeAddedToInventory(item->id(), item->getCount());
+                if (itemsToAdd > 0) {
+                    sendPickUpItem(item, player, itemsToAdd);
+                    entityManager.removeEntity(item->uuidString);
+                    player->addItemToInventory(item->id(), itemsToAdd);
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -416,6 +473,31 @@ void handlePlayerSwingArm(SocketType socket, const std::vector<uint8_t> & packet
     }
 }
 
+void spawnBlockDrops(int32_t x, int32_t y, int32_t z, int16_t blockState) {
+    std::vector<std::shared_ptr<Item>> items = getItemsFromBlock(blockState);
+    for (const auto & item : items) {
+        if (item->id() == 0) {
+            return;
+        }
+        // Set initial position
+        item->setPosition(x + 0.5, y + 0.5, z + 0.5);
+
+        // Assign random initial motion
+        double motionX = getRandomDouble(-0.1, 0.1); // Adjust range as needed
+        double motionY = getRandomDouble(0.2, 0.3);    // Slight upward motion
+        double motionZ = getRandomDouble(-0.1, 0.1);
+        item->setMotion(motionX, motionY, motionZ);
+
+        item->setCooldown(10); // 10 ticks before item can be picked up
+
+        // Send spawn packet with velocity
+        sendBundleDelimiter();
+        sendSpawnEntityPacket(item);
+        sendEntityMetadataPacket(item->getMetadata(), item->entityID);
+        sendBundleDelimiter();
+    }
+}
+
 void handleFinishedDigging(ClientConnection& client, const std::shared_ptr<Player> & player, const std::tuple<int32_t, int32_t, int32_t> & blockPosition, Face face, size_t sequence) {
     int32_t x = std::get<0>(blockPosition);
     int32_t y = std::get<1>(blockPosition);
@@ -469,7 +551,7 @@ void handleFinishedDigging(ClientConnection& client, const std::shared_ptr<Playe
 
     // Send block drop items to the player (if not in creative mode)
     if (player->gameMode != 1) {
-        //spawnBlockDrops(x, y, z, chunk->getBlock(x, y, z), player); TODO: Add block drops
+        spawnBlockDrops(x, y, z, oldBlockStateID);
     }
 }
 
@@ -529,6 +611,8 @@ void handleSetCreativeModeSlot(SocketType socket, const std::vector<uint8_t> & p
     // 2.2 Item ID (Optional VarInt)
     if (slotDataParsed.itemCount > 0) {
         slotDataParsed.itemId = parseVarInt(packetData, index);
+    } else {
+        slotDataParsed.itemId = 0;
     }
 
     // 2.3 Number of Components to Add (Optional VarInt)
@@ -602,6 +686,7 @@ void handleSetCreativeModeSlot(SocketType socket, const std::vector<uint8_t> & p
     }
 
     player->inventory.slots[slot] = slotDataParsed;
+    SendSetContainerSlot(*player->client, 0, 0, slot, slotDataParsed);
 }
 
 void handleSetHeldItem(SocketType socket, const std::vector<uint8_t> & packetData, size_t index, const std::shared_ptr<Player> & player) {
@@ -752,7 +837,7 @@ void handleUseItemOn(ClientConnection& client, const std::vector<uint8_t> & pack
     // Acknowledge the block change
     sendAcknowledgeBlockChange(client, sequence);
 
-    // 8. Optionally, Update the Player's Inventory
+    // 8. Update the Player's Inventory
     // In Creative Mode, items are not consumed. If in Survival, decrease item count
     if (player->gameMode != 1) {
         //decreaseItemCount(player->inventory[selectedSlot], 1); // TODO: Implement
@@ -825,14 +910,14 @@ void handlePlayerSession(ClientConnection & client, const std::vector<uint8_t> &
     // Key Signature (Array of Bytes)
     player->sessionKey.keySig = parseBytes(packetData, index, keySignatureLength);
 
-    // Parse the public key and store it
-    player->publicKey = parsePublicKey(player->sessionKey.pubKey);
-    if (!player->publicKey) {
-        disconnectClient(*player, "Invalid public key.", true);
-        return;
-    }
-
     if (serverConfig.enableSecureChat) {
+        // Parse the public key and store it
+        player->publicKey = parsePublicKey(player->sessionKey.pubKey);
+        if (!player->publicKey) {
+            disconnectClient(*player, "Invalid public key.", true);
+            return;
+        }
+
         // Fetch Mojang's public keys
         std::vector<std::string> mojangPublicKeyPEMs = fetchMojangPublicKeys();
         if (mojangPublicKeyPEMs.empty()) {
@@ -1169,13 +1254,10 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
     // Send Player Position and Look packet
     sendSynchronizePlayerPositionPacket(client, newPlayer);
 
-    // Add the new player to the Entity Manager
-    entityManager.addEntity(newPlayer);
-
     /// Send Player Info Update to the new player about all existing entities (excluding themselves)
-    std::vector<std::shared_ptr<Entity>> existingEntities = entityManager.getAllEntities();
+    std::unordered_map<int32_t, std::shared_ptr<Entity>> existingEntities = entityManager.getAllEntities();
     std::vector<std::shared_ptr<Entity>> entitiesToInform;
-    for (const auto& entity : existingEntities) {
+    for (const auto &entity: existingEntities | std::views::values) {
         if (entity->uuidString != newPlayer->uuidString) {
             entitiesToInform.push_back(entity);
         }
@@ -1209,7 +1291,7 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
 
     // Send Spawn Entity packets
     // Send to the new client about existing players
-    for (const auto& entity : existingEntities) {
+    for (const auto &entity: existingEntities | std::views::values) {
         if (entity->uuidString != newPlayer->uuidString && entity->type == EntityType::Player) {
             sendSpawnEntityPacket(client, entity);
         }
@@ -1500,6 +1582,7 @@ bool handleConfigurationState(ClientConnection& client, RegistryManager& registr
         logMessage("Failed to receive Acknowledge Finish Configuration packet", LOG_ERROR);
         return false;
     }
+
     return true;
 }
 
@@ -1682,7 +1765,7 @@ void handleLoginRequest(ClientConnection& client, RegistryManager& registryManag
     }
 
     // Create a new Player instance
-    std::shared_ptr<Player> newPlayer = std::make_shared<Player>(entityManager.generateUniqueEntityID(), uuidBytes, playerName);
+    std::shared_ptr<Player> newPlayer = EntityFactory::createPlayer(uuidBytes, playerName);
 
     // Assign a unique Entity ID
     newPlayer->uuidString = playerUUID;

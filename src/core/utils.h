@@ -13,6 +13,9 @@
 #include "enums/enums.h"
 #include "networking/fetch.h"
 
+enum class Axis;
+struct BoundingBox;
+class Item;
 class Bossbar;
 struct sockaddr_in;
 struct ClientConnection;
@@ -122,5 +125,9 @@ std::string colorBossbarMessage(const Bossbar& bossbar);
 BossbarColor stringToBossbarColor(const std::string& color);
 BossbarDivision stringToBossbarDivision(const std::string& division);
 int64_t parseDuration(const std::string& durationStr);
+std::vector<std::shared_ptr<Item>> getItemsFromBlock(int16_t blockstate);
+double getRandomDouble(double min, double max);
+bool checkCollision(Item& item, BoundingBox& collidedBlockBox, Axis axis);
+double calculateFinalVelocity(double initialVelocity, double drag, double acceleration, int ticksPassed, DragApplicationOrder order);
 
 #endif // UTILS_H

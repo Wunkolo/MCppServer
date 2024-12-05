@@ -21,6 +21,8 @@
 #include "networking/fetch.h"
 #include "server.h"
 #include "zlib.h"
+#include "entities/entity_factory.h"
+#include "entities/item_entity.h"
 #include "utils/translation.h"
 
 std::vector<uint8_t> readFile(const std::string& filename) {
@@ -962,4 +964,107 @@ int64_t parseDuration(const std::string& durationStr) {
     }
 
     return ticks;
+}
+
+std::vector<std::shared_ptr<Item>> getItemsFromBlock(int16_t blockstate) {
+    std::vector<std::shared_ptr<Item>> items;
+    for (const auto& block : blocks) {
+        if (blockstate >= block.second.minStateId && blockstate <= block.second.maxStateId) {
+            for (auto itemId : block.second.drops) {
+                auto item = EntityFactory::createItem();
+                item->setItemId(static_cast<int16_t>(itemId));
+                item->setItemCount(1);
+                items.push_back(item);
+            }
+            break;
+        }
+    }
+    return items;
+}
+
+std::string getBlockName(int16_t blockstate) {
+    for (const auto& block : blocks) {
+        if (blockstate >= block.second.minStateId && blockstate <= block.second.maxStateId) {
+            return block.first;
+        }
+    }
+    return "";
+}
+
+double getRandomDouble(double min, double max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(min, max);
+    return dis(gen);
+}
+
+int32_t posToBlockCoord(double pos) {
+    return static_cast<int32_t>(std::floor(pos));
+}
+
+bool checkCollision(Item& item, BoundingBox& collidedBlockBox, Axis axis) {
+    BoundingBox itemBox = item.getHitBox();
+
+    // Determine the blocks overlapped by the item's bounding box
+    int32_t minBlockX = posToBlockCoord((axis == Axis::X || axis == Axis::Y) ? itemBox.minX : item.getPositionX());
+    int32_t maxBlockX = posToBlockCoord((axis == Axis::X || axis == Axis::Y) ? itemBox.maxX : item.getPositionX());
+    int32_t minBlockY = posToBlockCoord(itemBox.minY);
+    int32_t maxBlockY = posToBlockCoord(itemBox.maxY);
+    int32_t minBlockZ = posToBlockCoord((axis == Axis::Y || axis == Axis::Z) ? itemBox.minZ : item.getPositionZ());
+    int32_t maxBlockZ = posToBlockCoord((axis == Axis::Y || axis == Axis::Z) ? itemBox.maxZ : item.getPositionZ());
+
+    for (int32_t x = minBlockX; x <= maxBlockX; ++x) {
+        for (int32_t y = minBlockY; y <= maxBlockY; ++y) {
+            for (int32_t z = minBlockZ; z <= maxBlockZ; ++z) {
+                auto chunk = getChunkContainingBlock(x, y, z);
+                auto blockstate = chunk->getBlock(getLocalCoordinate(x), y, getLocalCoordinate(z)).blockStateID;
+                if (blockstate == blocks["air"].defaultState) {
+                    continue; // No collision with air
+                }
+
+                // Get collision shapes for this block type
+                // TODO: Get correct shapeId by using the blockstate and not get all of the shapes
+                auto shapeIDs = blockNameToShapeIDs[getBlockName(blockstate)];
+                std::vector<BoundingBox> shapesOpt;
+                for (const auto& shapeID : shapeIDs) {
+                    for (auto shape : shapeIDToShapes[static_cast<int>(shapeID)]) {
+                        shapesOpt.emplace_back(shape);
+                    }
+                }
+                for (const auto& shape : shapesOpt) {
+                    // Convert block shape to world coordinates
+                    BoundingBox blockBox{
+                        static_cast<double>(x) + shape.minX,
+                        static_cast<double>(y) + shape.minY,
+                        static_cast<double>(z) + shape.minZ,
+                        static_cast<double>(x) + shape.maxX,
+                        static_cast<double>(y) + shape.maxY,
+                        static_cast<double>(z) + shape.maxZ
+                    };
+
+                    if (itemBox.intersects(blockBox)) {
+                        collidedBlockBox = blockBox;
+                        return true; // Collision detected
+                    }
+                }
+            }
+        }
+    }
+
+    return false; // No collision
+}
+
+double calculateFinalVelocity(double initialVelocity, double drag, double acceleration, int ticksPassed, DragApplicationOrder order) {
+    if (drag == 0.0) { // Avoid division by zero
+        return initialVelocity + acceleration * ticksPassed;
+    }
+
+    double dragFactor = std::pow(1.0 - drag, ticksPassed);
+    double accelerationFactor = (1.0 - dragFactor) / drag;
+
+    if (order == BeforeAcceleration) {
+        return (initialVelocity * dragFactor) - (acceleration * accelerationFactor);
+    }
+    // AfterAcceleration
+    return (initialVelocity * dragFactor) - (acceleration * accelerationFactor * (1.0 - drag));
 }

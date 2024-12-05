@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "core/server.h"
 #include "core/utils.h"
 
 std::unordered_map<std::string, BiomeData> loadBiomes(const std::string& filePath) {
@@ -43,6 +44,22 @@ std::unordered_map<std::string, BiomeData> loadBiomes(const std::string& filePat
     return biomeMap;
 }
 
+std::vector<uint16_t> getBlockDrops(nlohmann::basic_json<>::const_reference value) {
+    std::vector<uint16_t> drops;
+    if (value.is_array()) {
+        for (const auto& drop : value) {
+            if (drop.is_number_integer()) {
+                drops.push_back(drop.get<uint16_t>());
+            } else {
+                logMessage("Invalid 'drops' entry in block data", LOG_ERROR);
+            }
+        }
+    } else {
+        logMessage("Invalid 'drops' entry in block data", LOG_ERROR);
+    }
+    return drops;
+}
+
 std::unordered_map<std::string, BlockData> loadBlocks(const std::string& filePath) {
     std::unordered_map<std::string, BlockData> blockMap;
     std::ifstream file(filePath);
@@ -77,6 +94,7 @@ std::unordered_map<std::string, BlockData> loadBlocks(const std::string& filePat
             blockData.minStateId = block.value("minStateId", 0);
             blockData.maxStateId = block.value("maxStateId", 0);
             blockData.boundingBox = block.value("boundingBox", "block");
+            blockData.drops = getBlockDrops(block["drops"]);
             blockData.states = getBlockStates(block["states"]);
 
             blockMap[name] = blockData;
@@ -154,4 +172,62 @@ std::unordered_map<int, ItemData> loadItemIDs(const std::string& filePath) {
     }
 
     return itemMap;
+}
+
+void loadCollisions(const std::string &filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        logMessage("Failed to open collisions JSON file: " + filePath, LOG_ERROR);
+        return;
+    }
+
+    nlohmann::json j;
+    try {
+        file >> j;
+    } catch (const nlohmann::json::parse_error& e) {
+        logMessage("JSON parse error in " + filePath + ": " + e.what(), LOG_ERROR);
+        return;
+    }
+
+    // Parse blocks
+    if (j.contains("blocks") && j["blocks"].is_object()) {
+        for (auto& [key, value] : j["blocks"].items()) {
+            if (value.is_number_integer()) {
+                blockNameToShapeIDs[key] = {value.get<int>()};
+            }
+            // Handle blocks with arrays of shape IDs
+            else if (value.is_array()) {
+                for (const auto& var : value) {
+                    if (var.is_number_integer()) {
+                        blockNameToShapeIDs[key].emplace_back(var);
+                    }
+                }
+            }
+        }
+    } else {
+        logMessage("No 'blocks' section found in " + filePath, LOG_ERROR);
+    }
+
+    // Parse shapes
+    if (j.contains("shapes") && j["shapes"].is_object()) {
+        for (auto& [key, value] : j["shapes"].items()) {
+            int blockID = std::stoi(key);
+            if (value.is_array()) {
+                for (const auto& shape : value) {
+                    if (shape.is_array() && shape.size() == 6) {
+                        BoundingBox bbox;
+                        bbox.minX = shape[0].get<double>();
+                        bbox.minY = shape[1].get<double>();
+                        bbox.minZ = shape[2].get<double>();
+                        bbox.maxX = shape[3].get<double>();
+                        bbox.maxY = shape[4].get<double>();
+                        bbox.maxZ = shape[5].get<double>();
+                        shapeIDToShapes[blockID].emplace_back(bbox);
+                    }
+                }
+            }
+        }
+    } else {
+        logMessage("No 'shapes' section found in " + filePath, LOG_ERROR);
+    }
 }

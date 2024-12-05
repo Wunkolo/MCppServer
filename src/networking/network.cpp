@@ -90,9 +90,14 @@ void writeBytes(std::vector<uint8_t>& buffer, const std::vector<uint8_t>& data, 
 }
 
 
-void writeByte(std::vector<uint8_t>& buffer, uint8_t value) {
+void writeByte(std::vector<uint8_t>& buffer, int8_t value) {
     buffer.push_back(value);
 }
+
+void writeUByte(std::vector<uint8_t> &buffer, uint8_t value) {
+    buffer.push_back(value);
+}
+
 
 void writeShort(std::vector<uint8_t>& buffer, int16_t value) {
     buffer.push_back(static_cast<uint8_t>((value >> 8) & 0xFF));

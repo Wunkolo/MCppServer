@@ -38,8 +38,10 @@ struct Player : Entity {
     void setSneaking(bool isSneaking) {
         if (isSneaking) {
             flags |= 0x02; // Set the sneaking bit
+            hitBox = {-0.3, 0, -0.3, 0.3, 1.65, 0.3};
         } else {
             flags &= ~0x02; // Clear the sneaking bit
+            hitBox = {-0.3, 0, -0.3, 0.3, 1.8, 0.3};
         }
     }
 
@@ -47,16 +49,15 @@ struct Player : Entity {
         return flags & 0x02;
     }
 
-    Player(int32_t id, const std::array<uint8_t, 16>& uuidBytes, const std::string& playerName, EntityType entityType = EntityType::Player) : Entity(
-            id, uuidBytes, entityType), uuid(uuidBytes), name(playerName), gameMode(), listed(false), ping(0),
-        currentChunkX(0),
-        currentChunkZ(0),
-        flags(0),
-        client(nullptr), viewDistance(0), sessionKey() {
-        hasHeadRotation = true;
-    }
+    bool operator==(const std::shared_ptr<Player> & shared) const;
+
+    Player(const std::array<uint8_t, 16>& uuidBytes, const std::string& playerName, EntityType entityType = EntityType::Player);
 
     void serializeAdditionalData(std::vector<uint8_t> &packetData) const override;
+    BoundingBox getPickUpBox() const;
+
+    int8_t canItemBeAddedToInventory(uint16_t id, uint8_t count) const;
+    void addItemToInventory(uint16_t id, uint8_t count);
 };
 
 #endif //PLAYER_H

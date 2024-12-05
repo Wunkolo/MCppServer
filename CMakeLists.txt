@@ -79,6 +79,11 @@ add_executable(MCppServer src/main.cpp
         src/world/boss_bar.h
         src/world/weather.cpp
         src/world/weather.h
+        src/entities/item_entity.cpp
+        src/entities/item_entity.cpp
+        src/entities/item_entity.h
+        src/entities/entity_factory.cpp
+        src/entities/entity_factory.h
 )
 
 # Include FetchContent module

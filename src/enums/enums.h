@@ -71,6 +71,10 @@ enum BossbarDivision {
   TWELVE_NOTCHES,
   TWENTY_NOTCHES
 };
+enum DragApplicationOrder {
+  BeforeAcceleration,
+  AfterAcceleration
+};
 
 
 #endif //ENUMS_H
