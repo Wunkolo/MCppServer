@@ -25,6 +25,7 @@ std::vector<std::string> ca_paths = {
 std::string httpGet(const std::string& host, const std::string& path) {
     httplib::SSLClient cli(host.c_str());
 
+#ifndef _WIN32
     bool set_ca_cert = false;
     for (const auto& path : ca_paths) {
         if (access(path.c_str(), R_OK) == 0) {
@@ -38,6 +39,7 @@ std::string httpGet(const std::string& host, const std::string& path) {
     }
     cli.enable_server_certificate_verification(true);
     cli.set_follow_location(true);
+#endif
 
     auto res = cli.Get(path.c_str());
 
@@ -154,6 +156,7 @@ bool authenticatePlayer(const std::string& username, const std::string& serverHa
 
     std::string endpoint = "/session/minecraft/hasJoined?username=" + httplib::detail::encode_query_param(username) + "&serverId=" + httplib::detail::encode_query_param(serverHash);
 
+#ifndef _WIN32
     bool set_ca_cert = false;
     for (const auto& path : ca_paths) {
         if (access(path.c_str(), R_OK) == 0) {
@@ -163,10 +166,11 @@ bool authenticatePlayer(const std::string& username, const std::string& serverHa
         }
     }
     if (!set_ca_cert) {
-        logMessage("No CA certificates found on system. SSL connections may fail.", LOG_ERROR);
+        logMessage("No CA certificates fouifnd on system. SSL connections may fail.", LOG_ERROR);
     }
     sessionClient.enable_server_certificate_verification(true);
     sessionClient.set_follow_location(true);
+#endif
 
     for (int tryCount = 0; tryCount < MAX_RETRIES; ++tryCount) {
         auto res = sessionClient.Get(endpoint.c_str());
