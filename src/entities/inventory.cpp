@@ -240,7 +240,6 @@ void Inventory::HandleInventoryClick(
                             }
                         } else if (dragButtonType == 8) {
                             // Middle drag (creative): similar to left drag but creative rules apply.
-                            // In creative mode, you can just set full stacks. For simplicity:
                             for (int slotIndex : dragSlots) {
                                 SlotData &ds = getSlotData(slotIndex);
                                 ds.itemId = carriedItem.itemId;
@@ -291,7 +290,7 @@ void Inventory::HandleInventoryClick(
 
                     // Iterate over all inventory slots to find the same item
                     // Note: This includes main inventory, hotbar, potentially crafting slots, armor, offhand.
-                    // For now, assume all inventory slots are considered.
+                    // For now, all inventory slots are considered.
                     for (auto &slotPair : slots) {
                         SlotData &slotData = slotPair.second;
 
@@ -460,8 +459,7 @@ void Inventory::UpdateCraftingResult() {
 // Returns true if a match is found, false otherwise.
 auto Inventory::FindMatchingRecipe(const std::array<uint16_t, 4> &inputItems, SlotData &resultSlotData) -> bool {
     // We must check all recipes to see if any match this 2x2 input.
-    // Note: In a complex system, you'd store separate maps for shaped and shapeless recipes,
-    // or index by multiple criteria. Here we brute force through all recipes.
+    // Note: For now we brute force through all recipes.
 
     for (auto &pair : craftingRecipes) {
         const CraftingRecipe &recipe = pair.second;
