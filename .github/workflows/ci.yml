@@ -15,11 +15,6 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Setup GCC 12
-        uses: actions/setup-gcc@v1
-        with:
-          gcc-version: '12'
-
       - name: Set up GCC
         uses: egor-tensin/setup-gcc@v1
         with:
