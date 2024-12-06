@@ -39,6 +39,7 @@ struct ClientConnection {
     std::mutex mutex;
     std::unordered_set<int32_t> pendingTeleportIDs;
     bool connectionClosed = false;
+    int64_t keepAliveID = 0;
 };
 
 void disconnectClient(const Player& player, const std::string& reason, bool disconnectPacket);

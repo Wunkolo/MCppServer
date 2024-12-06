@@ -1,3 +1,4 @@
+#include "chunk.h"
 #include "world.h"
 
 #include <iostream>
@@ -9,7 +10,6 @@
 #include <tag_string.h>
 #include <io/stream_reader.h>
 
-#include "chunk.h"
 #include "core/server.h"
 #include "core/utils.h"
 #include "tag_primitive.h"

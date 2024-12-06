@@ -1172,6 +1172,13 @@ void handleCommandSuggestionsRequest(ClientConnection & client, const std::vecto
     }
 }
 
+void handleKeepAlive(const ClientConnection & client, const std::vector<uint8_t> & packet, size_t index, const std::shared_ptr<Player> & player) {
+    int64_t keepAliveID = parseLong(packet, index);
+    if (keepAliveID != client.keepAliveID) {
+        logMessage("Keep Alive ID mismatch for player: " + player->name, LOG_WARNING);
+    }
+}
+
 void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& packetData, const std::shared_ptr<Player>& player, const RegistryManager& registryManager) {
     size_t index = 0;
 
@@ -1195,6 +1202,9 @@ void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& pa
             break;
         case COMMAND_SUGGESTIONS_REQUEST: // Command Suggestions Request
             handleCommandSuggestionsRequest(client, packetData, index, player);
+            break;
+        case SERVERBOUND_KEEP_ALIVE: // Keep Alive
+            handleKeepAlive(client, packetData, index, player);
             break;
         case PLAYER_POSITION: // Player Position
             if (client.state != ClientState::AwaitingTeleportConfirm) {
@@ -1463,7 +1473,7 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
             // Process incoming packets (e.g., Keep Alive Response)
             handleClientPacket(client, packetData, newPlayer, registryManager);
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Avoid high CPU usage
+            std::this_thread::sleep_for(std::chrono::nanoseconds(100)); // Avoid high CPU usage
         }
     } catch (const std::exception& e) {
         disconnectClient(*newPlayer, "Player disconnected", false);

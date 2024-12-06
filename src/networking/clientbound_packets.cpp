@@ -992,6 +992,7 @@ bool sendKeepAlivePacket(ClientConnection& client) {
     // Keep Alive ID (Long)
     int64_t keepAliveID = std::chrono::system_clock::now().time_since_epoch().count();
     writeLong(packetData, keepAliveID);
+    client.keepAliveID = keepAliveID;
 
     // Build and send the packet
     return sendPacket(client, packetData);
