@@ -895,6 +895,25 @@ void buildAllCommands() {
                 .end() // End <duration> argument
             .end() // End "thunder" subcommand
         .end(); // End "weather" command
+    // Inventory command: /inventory <player>
+    builder
+        .literal("inventory", true, true)
+            .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+                    std::string inventory;
+                    for (auto& slot : player->inventory.slots) {
+                        if (slot.second.itemId.value() != 0) {
+                            inventory += "Slot " + std::to_string(slot.first) + ": ID: " + std::to_string(slot.second.itemId.value()) + ", Count: " + std::to_string(slot.second.itemCount) + "\n";
+                        }
+                    }
+                sendOutput(inventory, false, {});
+                })
+                .argument("player", 7, true, true)
+                    .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
+
+                    })
+                    .end()                               // End argument node
+            .end();                               // End "inventory" command node
+
 
     // Build the command graph
     globalCommandGraph = builder.build();

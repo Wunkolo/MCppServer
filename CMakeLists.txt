@@ -84,6 +84,8 @@ add_executable(MCppServer src/main.cpp
         src/entities/item_entity.h
         src/entities/entity_factory.cpp
         src/entities/entity_factory.h
+        src/data/crafting_recipes.cpp
+        src/data/crafting_recipes.h
 )
 
 # Include FetchContent module

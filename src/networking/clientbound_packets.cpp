@@ -1557,3 +1557,42 @@ void SendSetContainerSlot(ClientConnection& client, const int8_t windowID, const
 
     sendPacket(client, packet);
 }
+
+void sendUpdateRecipes(ClientConnection& client) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, UPDATE_RECIPES);
+
+    /*
+    writeVarInt(packet, static_cast<int32_t>(craftingRecipes.size()));
+    for (const auto&[key, CraftingRecipe] : craftingRecipes) {
+        writeBytes(packet, CraftingRecipe.serialize(key));
+    }
+    */
+
+    writeVarInt(packet, 1);
+    writeBytes(packet, craftingRecipes.find(36)->second.serialize(36));
+
+    sendPacket(client, packet);
+}
+
+void sendContainerContent(ClientConnection& client, uint8_t windowID, int32_t stateID, Inventory& inventory) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, SET_CONTAINER_CONTENT);
+
+    writeUByte(packet, windowID);
+    writeVarInt(packet, stateID);
+    writeVarInt(packet, inventory.size);
+    for (int i = 0; i < inventory.size; i++) {
+        if (inventory.slots.contains(i)) {
+            writeSlotSimple(packet, inventory.slots[i]);
+        } else {
+            SlotData emptySlot;
+            emptySlot.itemCount = 0;
+            emptySlot.itemId = 0;
+            writeSlotSimple(packet, emptySlot);
+        }
+    }
+    writeSlotSimple(packet, inventory.carriedItem);
+
+    sendPacket(client, packet);
+}

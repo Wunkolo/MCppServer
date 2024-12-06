@@ -58,6 +58,10 @@ struct Player : Entity {
 
     int8_t canItemBeAddedToInventory(uint16_t id, uint8_t count) const;
     void addItemToInventory(uint16_t id, uint8_t count);
+    void setClient(ClientConnection* newClient) {
+        client = newClient;
+        inventory.client = newClient;
+    }
 };
 
 #endif //PLAYER_H

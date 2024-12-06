@@ -9,8 +9,10 @@ bool Player::operator==(const std::shared_ptr<Player> &shared) const {
     return uuid == shared->uuid;
 }
 
-Player::Player(const std::array<uint8_t, 16>& uuidBytes, const std::string& playerName, EntityType entityType) : Entity(uuidBytes, entityType, 0.09, 0.02, {-0.3, 0, -0.3, 0.3, 1.8, 0.3}), uuid(uuidBytes), name(playerName), gameMode(), listed(false), ping(0),
-                                                                                                                 currentChunkX(0), currentChunkZ(0), flags(0), client(nullptr), viewDistance(0), sessionKey() {
+Player::Player(const std::array<uint8_t, 16>& uuidBytes, const std::string& playerName, EntityType entityType) : Entity(
+        uuidBytes, entityType, 0.09, 0.02, {-0.3, 0, -0.3, 0.3, 1.8, 0.3}), uuid(uuidBytes), name(playerName),
+    gameMode(), listed(false), ping(0),
+    currentChunkX(0), currentChunkZ(0), flags(0), client(nullptr), viewDistance(0), inventory(46), sessionKey() {
     hasHeadRotation = true;
 }
 

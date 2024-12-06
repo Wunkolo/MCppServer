@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "data/crafting_recipes.h"
 #include "data/data.h"
 #include "entities/entity.h"
 #include "entities/entity_manager.h"
@@ -53,6 +54,7 @@ inline std::unordered_map<std::string, BlockData> blocks;
 inline std::unordered_map<std::string, ItemData> items;
 inline std::unordered_map<int, ItemData> itemIDs;
 inline std::unordered_map<std::string, std::unordered_map<std::string, std::string>> translations;
+inline std::unordered_multimap<uint16_t, CraftingRecipe> craftingRecipes;
 
 inline std::shared_ptr<RootNode> globalCommandGraph;
 inline size_t commandGraphNumOfNodes;

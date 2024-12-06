@@ -1179,6 +1179,23 @@ void handleKeepAlive(const ClientConnection & client, const std::vector<uint8_t>
     }
 }
 
+void handleClickContainer(const ClientConnection & client, const std::vector<uint8_t> & packet, size_t index, const std::shared_ptr<Player> & player) {
+    uint8_t windowID = parseByte(packet, index);
+    int32_t stateID = parseVarInt(packet, index);
+    int16_t slot = parseShort(packet, index);
+    int8_t button = parseByte(packet, index);
+    int32_t mode = parseVarInt(packet, index);
+    int32_t arrayLength = parseVarInt(packet, index);
+    std::vector<std::pair<int16_t, SlotData>> changedSlotsFromClient;
+    for (int i = 0; i < arrayLength; i++) {
+        int16_t slotIndex = parseShort(packet, index);
+        SlotData slotData = parseSlotData(packet, index);
+        changedSlotsFromClient.emplace_back(slotIndex, slotData);
+    }
+    SlotData carriedItem = parseSlotData(packet, index);
+    player->inventory.HandleInventoryClick(windowID, stateID, slot, button, mode, changedSlotsFromClient, carriedItem);
+}
+
 void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& packetData, const std::shared_ptr<Player>& player, const RegistryManager& registryManager) {
     size_t index = 0;
 
@@ -1202,6 +1219,9 @@ void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& pa
             break;
         case COMMAND_SUGGESTIONS_REQUEST: // Command Suggestions Request
             handleCommandSuggestionsRequest(client, packetData, index, player);
+            break;
+        case CLICK_CONTAINER: // Click container slot
+            handleClickContainer(client, packetData, index, player);
             break;
         case SERVERBOUND_KEEP_ALIVE: // Keep Alive
             handleKeepAlive(client, packetData, index, player);
@@ -1257,6 +1277,9 @@ void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& pa
 void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& newPlayer, const RegistryManager& registryManager) {
     // Send Join Game packet
     sendJoinGamePacket(client, newPlayer->entityID);
+
+    // Update recipes
+    sendUpdateRecipes(client);
 
     // Add commands
     sendCommandsPacket(client);
@@ -1783,7 +1806,7 @@ void handleLoginRequest(ClientConnection& client, RegistryManager& registryManag
     newPlayer->gameMode = CREATIVE;
     newPlayer->listed = true;
     newPlayer->ping = -1; // Unknown initially
-    newPlayer->client = &client;
+    newPlayer->setClient(&client);
     if (texturesPair.first.empty() || texturesPair.second.empty()) {
         texturesPair = fetchPlayerSkin(newPlayer->uuidString);
         if (!texturesPair.first.empty() && !texturesPair.second.empty()) {

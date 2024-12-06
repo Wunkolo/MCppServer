@@ -255,6 +255,30 @@ uint64_t parseVarLong(const std::vector<uint8_t>& data, size_t& index) {
     return value;
 }
 
+SlotData parseSlotData(const std::vector<uint8_t>& data, size_t& index) {
+    SlotData slot;
+    slot.itemCount = parseVarInt(data, index);
+    if (slot.itemCount == 0) {
+        return slot;
+    }
+
+    int32_t itemID = parseVarInt(data, index);
+    if (itemID != -1) {
+        slot.itemId = itemID;
+    }
+
+    int32_t numComponentsToAdd = parseVarInt(data, index);
+    if (numComponentsToAdd > 0) {
+        logMessage("Num components to add: " + std::to_string(numComponentsToAdd), LOG_DEBUG);
+    }
+    int32_t numComponentsToRemove = parseVarInt(data, index);
+    if (numComponentsToRemove > 0) {
+        logMessage("Num components to remove: " + std::to_string(numComponentsToRemove), LOG_DEBUG);
+    }
+
+    return slot;
+}
+
 uint8_t parseByte(const std::vector<uint8_t>& data, size_t& index) {
     if (index >= data.size()) {
         // Error: Not enough data

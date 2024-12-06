@@ -79,6 +79,8 @@ void sendBundleDelimiter();
 void sendEntityVelocity(const std::shared_ptr<Entity>& entity);
 void sendPickUpItem(const std::shared_ptr<Entity>& collectedEntity, const std::shared_ptr<Entity>& collectorEntity, int8_t count);
 void SendSetContainerSlot(ClientConnection& client, const int8_t windowID, const int32_t stateID, const uint16_t slotID, const SlotData& slot);
+void sendUpdateRecipes(ClientConnection& client);
+void sendContainerContent(ClientConnection& client, uint8_t windowID, int32_t stateID, Inventory& inventory);
 
 template<typename... Args>
 void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, Args&&... args) {

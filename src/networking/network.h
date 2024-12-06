@@ -43,6 +43,7 @@ std::string parseString(const std::vector<uint8_t>& data, size_t& index);
 std::vector<uint8_t> parseBytes(const std::vector<uint8_t>& data, size_t& index, size_t length);
 uint8_t parseByte(const std::vector<uint8_t>& data, size_t& index);
 uint64_t parseVarLong(const std::vector<uint8_t>& data, size_t& index);
+SlotData parseSlotData(const std::vector<uint8_t>& data, size_t& index);
 bool readUnencryptedPacket(const ClientConnection& client, std::vector<uint8_t>& packetData);
 bool readPacketTimeout(const ClientConnection& client, std::vector<uint8_t>& packetData, int timeout, bool unencrypted);
 bool readPacket(const ClientConnection& client, std::vector<uint8_t>& packetData);

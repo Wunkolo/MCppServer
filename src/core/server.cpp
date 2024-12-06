@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "commands/CommandBuilder.h"
+#include "data/crafting_recipes.h"
 #include "entities/item_entity.h"
 #include "networking/clientbound_packets.h"
 #include "server/query_server.h"
@@ -305,6 +306,7 @@ void runServer() {
     itemIDs = loadItemIDs("../resources/items.json");
     translations = loadTranslations("../resources/languages.json");
     loadCollisions("../resources/blockCollisionShapes.json");
+    craftingRecipes = loadCraftingRecipes("../resources/recipes/crafting_recipes.json");
 
     auto endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedSeconds = endTime - startTime;
