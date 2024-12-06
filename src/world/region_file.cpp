@@ -98,9 +98,9 @@ bool RegionFile::writeHeader() {
     for (size_t i = 0; i < 1024; ++i) {
         uint32_t offset = chunkOffsetTable[i];
         // Convert to big-endian
-        uint32_t beOffset = ((offset & 0xFF0000) >> 16) |
-                            ((offset & 0xFF00) >> 8) |
-                            (offset & 0xFF);
+        uint32_t beOffset = ((offset & 0xFF0000) >> 8) |
+							((offset & 0xFF00) << 8) |
+							((offset & 0xFF) << 16);
         fileStream.write(reinterpret_cast<const char*>(&beOffset), 4);
     }
 
