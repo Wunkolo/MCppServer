@@ -237,7 +237,7 @@ bool RCONServer::authenticateClient(SocketType clientSock) const {
     if (passwordAttempt != password) {
         // Send auth failure response
         uint32_t responseLength = 10;
-        std::vector<char> response(responseLength, 0);
+        std::vector<char> response(4 + responseLength, 0);
         int32_t responseId = -1;
         int32_t responseType = 0; // Type 0 for response
         memcpy(response.data(), &responseLength, 4);
