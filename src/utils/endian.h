@@ -1,6 +1,7 @@
 #ifndef LE32TOH_H
 #define LE32TOH_H
 #include <cstdint>
+#include <bit>
 
 // Byte swap functions for different bit widths
 inline uint16_t byteswap16(uint16_t x) {
@@ -42,9 +43,7 @@ inline uint32_t le32toh(uint32_t little_endian) {
             return byteswap32(little_endian);
         #endif
     #else
-        // Runtime endianness detection
-        static const int num = 1;
-        if (*reinterpret_cast<const char*>(&num) == 1) {
+        if constexpr (std::endian::native == std::endian::little)
             // Little-endian
             return little_endian;
         } else {
@@ -58,6 +57,19 @@ inline uint32_t le32toh(uint32_t little_endian) {
             #endif
         }
     #endif
+}
+inline uint64_t htobe64(uint64_t host_64bits) {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    return host_64bits;
+#else
+    #if defined(__GNUC__) || defined(__clang__)
+        return __builtin_bswap64(little_endian);
+    #elif defined(_MSC_VER)
+        return _byteswap_uint64(little_endian);
+    #else
+        return byteswap64(little_endian);
+    #endif
+#endif
 }
 #endif
 

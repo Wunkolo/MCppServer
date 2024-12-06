@@ -393,23 +393,6 @@ std::vector<int64_t> packHeightmap(const std::vector<int64_t>& heights, int bits
     return packed;
 }
 
-#ifdef _WIN32
-uint64_t htobe64(uint64_t host_64bits) {
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    return host_64bits;
-#else
-    return ((host_64bits & 0x00000000000000FFULL) << 56) |
-           ((host_64bits & 0x000000000000FF00ULL) << 40) |
-           ((host_64bits & 0x0000000000FF0000ULL) << 24) |
-           ((host_64bits & 0x00000000FF000000ULL) << 8)  |
-           ((host_64bits & 0x000000FF00000000ULL) >> 8)  |
-           ((host_64bits & 0x0000FF0000000000ULL) >> 24) |
-           ((host_64bits & 0x00FF000000000000ULL) >> 40) |
-           ((host_64bits & 0xFF00000000000000ULL) >> 56);
-#endif
-}
-#endif
-
 // Function to unpack bitsPerEntry bits from packedData into separate indices
 std::vector<uint32_t> unpackBits(const std::vector<uint8_t>& packedData, int bitsPerEntry) {
     // Validate bitsPerEntry

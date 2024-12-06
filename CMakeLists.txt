@@ -63,7 +63,7 @@ add_executable(MCppServer src/main.cpp
         src/utils/thread_pool.h
         src/server/rcon_server.cpp
         src/server/rcon_server.h
-        src/utils/le32toh.h
+        src/utils/endian.h
         src/server/query_server.cpp
         src/server/query_server.h
         src/networking/packet_ids.h

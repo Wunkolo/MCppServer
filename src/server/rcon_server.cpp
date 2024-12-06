@@ -2,7 +2,7 @@
 
 #include "networking//client.h"
 #include "commands/CommandBuilder.h"
-#include "utils/le32toh.h"
+#include "utils/endian.h"
 #include "core/utils.h"
 #include "utils/translation.h"
 

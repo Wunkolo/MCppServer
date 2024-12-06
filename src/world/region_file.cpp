@@ -7,6 +7,7 @@
 
 #include "core/utils.h"
 #include "zlib.h"
+#include "utils/endian.h"
 #include "io/stream_reader.h"
 
 RegionFile::RegionFile(const std::filesystem::path& filepath, bool readOnly) : filepath(filepath) {
@@ -79,8 +80,7 @@ bool RegionFile::loadHeader() {
         uint32_t timestamp = 0;
         fileStream.read(reinterpret_cast<char*>(&timestamp), 4);
         // Convert from big-endian to host byte order
-        timestamp = ((timestamp & 0xFF) << 24) | ((timestamp & 0xFF00) << 8) |
-                    ((timestamp & 0xFF0000) >> 8) | ((timestamp & 0xFF000000) >> 24);
+        timestamp = byteswap32(timestamp);
         chunkTimestampTable[i] = timestamp;
     }
 
@@ -319,10 +319,7 @@ bool RegionFile::saveChunk(int localX, int localZ, int regionX, int regionZ, con
     uint32_t chunkLength = static_cast<uint32_t>(1 + compressedData.size()); // 1 byte for compression type
 
     // Convert chunkLength to big-endian
-    uint32_t beChunkLength = ((chunkLength & 0xFF000000) >> 24) |
-                              ((chunkLength & 0x00FF0000) >> 8) |
-                              ((chunkLength & 0x0000FF00) << 8) |
-                              ((chunkLength & 0x000000FF) << 24);
+    uint32_t beChunkLength = byteswap32(chunkLength);
     chunkData.resize(4 + 1 + compressedData.size());
     memcpy(chunkData.data(), &beChunkLength, 4);
     chunkData[4] = compressionType;
