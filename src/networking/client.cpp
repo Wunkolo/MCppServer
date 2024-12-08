@@ -40,7 +40,7 @@ void disconnectClient(const std::shared_ptr<Player>& player, const std::string& 
 #ifdef _WIN32
         closesocket(player->client->socket);
 #else
-        close(player.client->socket);
+        close(player->client->socket);
 #endif
     }
     player->client->connectionClosed = true;
