@@ -1,12 +1,10 @@
-//
-// Created by noah1 on 13.11.2024.
-//
-
 #ifndef CLIENT_H
 #define CLIENT_H
 
 #include <array>
+#include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 #include <openssl/types.h>
 
@@ -42,9 +40,10 @@ struct ClientConnection {
     int64_t keepAliveID = 0;
 };
 
-void disconnectClient(const Player& player, const std::string& reason, bool disconnectPacket);
+void disconnectClient(const std::shared_ptr<Player>& player, const std::string& reason, bool disconnectPacket);
 void handleClient(SocketType clientSock);
 void handleConsoleCommand(const std::string & command);
+void miningScheduler(std::unordered_map<std::string, std::shared_ptr<Player>> &players, std::atomic<bool> &running);
 
 
 #endif // CLIENT_H

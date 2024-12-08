@@ -9,8 +9,8 @@
 #include "world/chunk.h"
 #include "networking/client.h"
 #include "entity.h"
-#include "inventory.h"
 #include "core/utils.h"
+#include "inventories/player_inventory.h"
 
 struct Player : Entity {
     std::array<uint8_t, 16> uuid; // UUID as bytes
@@ -28,12 +28,19 @@ struct Player : Entity {
     std::unordered_set<ChunkCoordinates> loadedChunks;
     int viewDistance;
     uint8_t activeSlot = 0;
-    Inventory inventory;
+    std::shared_ptr<PlayerInventory> inventory;
+    std::shared_ptr<Inventory> currentInventory;
     std::vector<uint8_t> sessionId;
     PublicKey sessionKey;
     EVP_PKEY* publicKey = nullptr;
     std::string brand;
     std::string lang;
+    uint8_t windowID = 0;
+
+    // Mutex for thread-safe access to mining progress
+    std::mutex miningMutex;
+    // Current mining progress mapped by block position
+    std::unordered_map<Position, MiningProgress, PositionHash> currentMining;
 
     void setSneaking(bool isSneaking) {
         if (isSneaking) {
@@ -60,7 +67,14 @@ struct Player : Entity {
     void addItemToInventory(uint16_t id, uint8_t count);
     void setClient(ClientConnection* newClient) {
         client = newClient;
-        inventory.client = newClient;
+        inventory->client = newClient;
+    }
+
+    uint16_t getHeldItemID() const {
+        if (currentInventory->slots.contains(activeSlot + 36) && currentInventory->slots.at(activeSlot + 36).itemId.has_value()) {
+            return currentInventory->slots.at(activeSlot + 36).itemId.value();
+        }
+        return 0;
     }
 };
 

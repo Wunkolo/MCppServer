@@ -22,7 +22,7 @@ class Entity;
 struct Position;
 
 void sendRemoveEntityPacket(const int32_t& entityID);
-void sendPlayerInfoRemove(const Player& player);
+void sendPlayerInfoRemove(const std::shared_ptr<Player>& player);
 void sendRegistryDataPacket(ClientConnection& client, RegistryManager& registryManager);
 void sendWorldEventPacket(ClientConnection& client, const int& worldEvent, const Position& position, const int& data);
 bool sendUpdateTagsPacket(ClientConnection& client);
@@ -37,16 +37,16 @@ void sendEntityTeleportPacket(const std::shared_ptr<Player>& player);
 void sendSpawnEntityPacket(const std::shared_ptr<Entity>& entity);
 void sendSpawnEntityPacket(ClientConnection& client, const std::shared_ptr<Entity>& entity);
 void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t entityStatus);
-void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Player>& playersToUpdate, uint8_t actions);
+void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<std::shared_ptr<Player>>& playersToUpdate, uint8_t actions);
 void sendGameEventPacket(ClientConnection& targetClient, GameEvent event, float value);
 void sendGameEvent(GameEvent event, float value);
-void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode);
+void sendChangeGamemode(ClientConnection& client, const std::shared_ptr<Player>& player, Gamemode gameMode);
 void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs);
-void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, const std::vector<std::string>* args = nullptr);
-void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const Player& player, bool log = true);
-void sendChatMessage(const std::string& message, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true);
+void sendTranslatedChatMessage(const std::string& key, bool actionBar = false, const std::string& color = "white", const std::vector<std::shared_ptr<Player>>* players = nullptr, bool log = true, const std::vector<std::string>* args = nullptr);
+void sendChatMessage(const std::string& message, bool actionBar, const std::string& color, const std::shared_ptr<Player>& player, bool log = true);
+void sendChatMessage(const std::string& message, bool actionBar = false, const std::string& color = "white", const std::vector<std::shared_ptr<Player>>* players = nullptr, bool log = true);
 void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t entityStatus);
-void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode);
+void sendChangeGamemode(ClientConnection& client, const std::shared_ptr<Player>& player, Gamemode gameMode);
 void sendDisconnectionPacket(ClientConnection& client, const std::string& reason);
 void sendSetCenterChunkPacket(ClientConnection& targetClient, int32_t chunkX, int32_t chunkZ);
 void sendResourcePacks(ClientConnection& client);
@@ -78,12 +78,16 @@ void sendBundleDelimiter(ClientConnection& client);
 void sendBundleDelimiter();
 void sendEntityVelocity(const std::shared_ptr<Entity>& entity);
 void sendPickUpItem(const std::shared_ptr<Entity>& collectedEntity, const std::shared_ptr<Entity>& collectorEntity, int8_t count);
-void SendSetContainerSlot(ClientConnection& client, const int8_t windowID, const int32_t stateID, const uint16_t slotID, const SlotData& slot);
+void SendSetContainerSlot(ClientConnection& client, int8_t windowID, int32_t stateID, uint16_t slotID, const SlotData& slot);
 void sendUpdateRecipes(ClientConnection& client);
 void sendContainerContent(ClientConnection& client, uint8_t windowID, int32_t stateID, Inventory& inventory);
+void sendOpenScreen(ClientConnection& client, uint8_t windowID, uint8_t windowType, const std::string& title);
+void sendBlockDestroyStage(const std::shared_ptr<Player>& player, const Position &blockPos, int8_t stage);
+void sendUpdateAttributes(ClientConnection& client, int32_t entityID, const std::vector<Attribute>& attributes);
+void sendPlayerAbilities(ClientConnection& client, uint8_t flags, float flyingSpeed, float fovModifier);
 
 template<typename... Args>
-void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<Player>* players = nullptr, bool log = true, Args&&... args) {
+void sendTranslatedChatMessage(const std::string& key, const bool actionBar = false, const std::string& color = "white", const std::vector<std::shared_ptr<Player>>* players = nullptr, bool log = true, Args&&... args) {
     std::vector<uint8_t> packetData = { };
 
     if (players == nullptr) {
@@ -101,16 +105,16 @@ void sendTranslatedChatMessage(const std::string& key, const bool actionBar = fa
     }
     else {
         for (const auto& player : *players) {
-            if (player.client != nullptr) {
+            if (player->client != nullptr) {
                 packetData.clear();
                 packetData.push_back(SYSTEM_CHAT_MESSAGE);
 
-                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player.lang, std::forward<Args>(args)...), color);
+                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player->lang, std::forward<Args>(args)...), color);
                 std::vector<uint8_t> textData = serializeNBT(textCompound, true);
                 packetData.insert(packetData.end(), textData.begin(), textData.end());
 
                 writeByte(packetData, actionBar);
-                sendPacket(*player.client, packetData);
+                sendPacket(*player->client, packetData);
             }
         }
     }

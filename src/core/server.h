@@ -64,6 +64,9 @@ inline std::unordered_map<std::string, std::shared_ptr<Player>> globalPlayers; /
 inline std::unordered_map<std::string, std::shared_ptr<Player>> globalPlayersName; // Key: Username
 inline std::mutex playersMutex;
 
+inline std::thread miningThread;
+inline std::atomic<bool> miningRunning;
+
 inline std::unordered_map<std::string, ClientConnection*> connectedClients;
 inline std::mutex connectedClientsMutex;
 

@@ -82,6 +82,8 @@ struct ChunkCoordinates {
     int32_t chunkX;
     int32_t chunkZ;
 
+    ChunkCoordinates(int32_t x, int32_t z) : chunkX(x), chunkZ(z) {}
+
     bool operator==(const ChunkCoordinates & other) const {
         return chunkX == other.chunkX && chunkZ == other.chunkZ;
     }

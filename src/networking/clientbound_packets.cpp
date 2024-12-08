@@ -30,7 +30,7 @@ void sendRemoveEntityPacket(const int32_t& entityID) {
     broadcastToOthers(packetData);
 }
 
-void sendPlayerInfoRemove(const Player& player) {
+void sendPlayerInfoRemove(const std::shared_ptr<Player>& player) {
     std::vector<uint8_t> packetData;
     packetData.push_back(PLAYER_INFO_REMOVE);
 
@@ -38,7 +38,7 @@ void sendPlayerInfoRemove(const Player& player) {
     writeVarInt(packetData, 1); // Removing one player
 
     // Player UUID (16 bytes)
-    packetData.insert(packetData.end(), player.uuid.begin(), player.uuid.end());
+    packetData.insert(packetData.end(), player->uuid.begin(), player->uuid.end());
 
     // Send to all connected clients
     std::lock_guard lock(connectedClientsMutex);
@@ -699,7 +699,7 @@ void sendEntityEventPacket(ClientConnection& client, int32_t entityID, uint8_t e
     sendPacket(client, packetData);
 }
 
-void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Player>& playersToUpdate, uint8_t actions) {
+void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<std::shared_ptr<Player>>& playersToUpdate, uint8_t actions) {
     std::vector<uint8_t> packetData = { };
     packetData.push_back(PLAYER_INFO_UPDATE);
 
@@ -711,18 +711,18 @@ void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Play
 
     for (const auto& player : playersToUpdate) {
         // Append UUID (16 bytes)
-        packetData.insert(packetData.end(), player.uuid.begin(), player.uuid.end());
+        packetData.insert(packetData.end(), player->uuid.begin(), player->uuid.end());
 
         // Player Actions based on the actions byte
         if (actions & 0x01) { // Add Player
             // Player Name (String)
-            writeString(packetData, player.name);
+            writeString(packetData, player->name);
 
             // Number Of Properties (VarInt)
-            writeVarInt(packetData, static_cast<int32_t>(player.properties.size()));
+            writeVarInt(packetData, static_cast<int32_t>(player->properties.size()));
 
             // Properties
-            for (const auto& prop : player.properties) {
+            for (const auto& prop : player->properties) {
                 // Property Name (String)
                 writeString(packetData, prop.first);
                 // Property Value (String)
@@ -739,56 +739,56 @@ void sendPlayerInfoUpdate(ClientConnection& targetClient, const std::vector<Play
             writeByte(packetData, serverConfig.enableSecureChat);
 
             if (serverConfig.enableSecureChat) {
-                if (player.sessionId.size() != 16) {
-                    logMessage("Invalid Session ID size for player: " + player.name, LOG_ERROR);
+                if (player->sessionId.size() != 16) {
+                    logMessage("Invalid Session ID size for player: " + player->name, LOG_ERROR);
                     disconnectClient(player, "Invalid Session ID size", true);
                     return;
                 }
 
-                if (player.sessionKey.pubKey.size() > 512) {
-                    logMessage("Public Key size exceeds 512 bytes for player: " + player.name, LOG_ERROR);
+                if (player->sessionKey.pubKey.size() > 512) {
+                    logMessage("Public Key size exceeds 512 bytes for player: " + player->name, LOG_ERROR);
                     disconnectClient(player, "Public Key size exceeds 512 bytes", true);
                     return;
                 }
 
-                if (player.sessionKey.keySig.size() > 4096) {
-                    logMessage("Public Key Signature size exceeds 4096 bytes for player: " + player.name, LOG_ERROR);
+                if (player->sessionKey.keySig.size() > 4096) {
+                    logMessage("Public Key Signature size exceeds 4096 bytes for player: " + player->name, LOG_ERROR);
                     disconnectClient(player, "Public Key Signature size exceeds 4096 bytes", true);
                     return;
                 }
                 // Chat Session ID (UUID)
-                writeBytes(packetData, player.sessionId);
+                writeBytes(packetData, player->sessionId);
 
                 // Public key expiry time (Long)
-                writeLong(packetData, player.sessionKey.expiresAt);
+                writeLong(packetData, player->sessionKey.expiresAt);
 
                 // Encoded public key size (VarInt)
-                writeVarInt(packetData, static_cast<int32_t>(player.sessionKey.pubKey.size()));
+                writeVarInt(packetData, static_cast<int32_t>(player->sessionKey.pubKey.size()));
 
                 // Encoded public key
-                writeBytes(packetData, player.sessionKey.pubKey);
+                writeBytes(packetData, player->sessionKey.pubKey);
 
                 // Public key signature size (VarInt)
-                writeVarInt(packetData, static_cast<int32_t>(player.sessionKey.keySig.size()));
+                writeVarInt(packetData, static_cast<int32_t>(player->sessionKey.keySig.size()));
 
                 // Public key signature
-                writeBytes(packetData, player.sessionKey.keySig);
+                writeBytes(packetData, player->sessionKey.keySig);
             }
         }
 
         if (actions & 0x04) { // Update Game Mode
             // Game Mode (VarInt)
-            writeVarInt(packetData, player.gameMode);
+            writeVarInt(packetData, player->gameMode);
         }
 
         if (actions & 0x08) { // Update Listed
             // Listed (Boolean)
-            packetData.push_back(player.listed ? 0x01 : 0x00);
+            packetData.push_back(player->listed ? 0x01 : 0x00);
         }
 
         if (actions & 0x10) { // Update Latency
             // Ping (VarInt)
-            writeVarInt(packetData, player.ping);
+            writeVarInt(packetData, player->ping);
         }
 
         if (actions & 0x20) { // Update Display Name
@@ -835,10 +835,10 @@ void sendGameEvent(GameEvent event, float value) {
     broadcastToOthers(packetData);
 }
 
-void sendChangeGamemode(ClientConnection& client, const Player& player, Gamemode gameMode) {
+void sendChangeGamemode(ClientConnection& client, const std::shared_ptr<Player>& player, Gamemode gameMode) {
     sendGameEventPacket(client, GameEvent::ChangeGameMode, static_cast<float>(gameMode));
     sendPlayerInfoUpdate(client, { player }, 0x04);
-}
+    }
 
 void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs) {
     std::vector<uint8_t> packetData;
@@ -856,7 +856,7 @@ void sendRemoveEntitiesPacket(const std::vector<int32_t>& entityIDs) {
     broadcastToOthers(packetData);
 }
 
-void sendTranslatedChatMessage(const std::string& key, const bool actionBar, const std::string& color, const std::vector<Player>* players, bool log, const std::vector<std::string>* args) {
+void sendTranslatedChatMessage(const std::string& key, const bool actionBar, const std::string& color, const std::vector<std::shared_ptr<Player>>* players, bool log, const std::vector<std::string>* args) {
     std::vector<uint8_t> packetData = { };
 
     if (players == nullptr) {
@@ -874,16 +874,16 @@ void sendTranslatedChatMessage(const std::string& key, const bool actionBar, con
     }
     else {
         for (const auto& player : *players) {
-            if (player.client != nullptr) {
+            if (player->client != nullptr) {
                 packetData.clear();
                 packetData.push_back(SYSTEM_CHAT_MESSAGE);
 
-                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player.lang, *args), color);
+                nbt::tag_compound textCompound = createTextComponent(getTranslation(key, player->lang, *args), color);
                 std::vector<uint8_t> textData = serializeNBT(textCompound, true);
                 packetData.insert(packetData.end(), textData.begin(), textData.end());
 
                 writeByte(packetData, actionBar);
-                sendPacket(*player.client, packetData);
+                sendPacket(*player->client, packetData);
             }
         }
     }
@@ -892,7 +892,7 @@ void sendTranslatedChatMessage(const std::string& key, const bool actionBar, con
     }
 }
 
-void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const std::vector<Player>* players, bool log) {
+void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const std::vector<std::shared_ptr<Player>>* players, bool log) {
     std::vector<uint8_t> packetData = { };
     packetData.push_back(SYSTEM_CHAT_MESSAGE);
 
@@ -907,8 +907,8 @@ void sendChatMessage(const std::string& message, const bool actionBar, const std
     }
     else {
         for (const auto& player : *players) {
-            if (player.client != nullptr) {
-                sendPacket(*player.client, packetData);
+            if (player->client != nullptr) {
+                sendPacket(*player->client, packetData);
             }
         }
     }
@@ -917,8 +917,8 @@ void sendChatMessage(const std::string& message, const bool actionBar, const std
     }
 }
 
-void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const Player& player, bool log) {
-    const std::vector<Player> singlePlayerList = { player };
+void sendChatMessage(const std::string& message, const bool actionBar, const std::string& color, const std::shared_ptr<Player>& player, bool log) {
+    const std::vector<std::shared_ptr<Player>> singlePlayerList = { player };
 
     // Call the multiple-players version with a pointer to the single-player vector
     sendChatMessage(message, actionBar, color, &singlePlayerList, log);
@@ -1469,7 +1469,7 @@ void sendBossbar(Bossbar& bossbar, int32_t action) {
             return;
         }
     }
-    for (const auto* player : bossbar.getPlayers()) {
+    for (const auto player : bossbar.getPlayers()) {
         if (player->client != nullptr) {
             sendPacket(*player->client, packet);
         }
@@ -1593,6 +1593,87 @@ void sendContainerContent(ClientConnection& client, uint8_t windowID, int32_t st
         }
     }
     writeSlotSimple(packet, inventory.carriedItem);
+
+    sendPacket(client, packet);
+}
+
+void sendOpenScreen(ClientConnection& client, const uint8_t windowID, const uint8_t windowType, const std::string& title) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, OPEN_SCREEN);
+
+    writeVarInt(packet, windowID);
+    writeVarInt(packet, windowType);
+    nbt::tag_compound titleTag = createTextComponent(title);
+    writeBytes(packet, serializeNBT(titleTag, true));
+
+    sendPacket(client, packet);
+}
+
+void sendBlockDestroyStage(const std::shared_ptr<Player>& player, const Position &blockPos, const int8_t stage) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, BLOCK_DESTROY_STAGE);
+
+    // Entity ID (VarInt)
+    writeVarInt(packet, player->entityID);
+
+    // Block Position (Position)
+    writeLong(packet, encodePosition(static_cast<int32_t>(blockPos.x), static_cast<int32_t>(blockPos.y), static_cast<int32_t>(blockPos.z)));
+
+    // Destroy Stage (Byte)
+    writeByte(packet, stage);
+
+    // Broadcast to all clients // TODO: Only broadcast to clients that have the chunk loaded
+    broadcastToOthers(packet, player->uuidString);
+}
+
+void sendUpdateAttributes(ClientConnection& client, const int32_t entityID, const std::vector<Attribute>& attributes) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, UPDATE_ATTRIBUTES);
+
+    // Entity ID (VarInt)
+    writeVarInt(packet, entityID);
+
+    // Number of Attributes (VarInt)
+    writeVarInt(packet, static_cast<int32_t>(attributes.size()));
+
+    for (const auto& attribute : attributes) {
+        // Attribute Id (VarInt)
+        writeVarInt(packet, attribute.id);
+
+        // Attribute Value (Double)
+        writeDouble(packet, attribute.value);
+
+        // Attribute Modifiers (VarInt)
+        writeVarInt(packet, static_cast<int32_t>(/*attribute.modifiers.size()*/0));
+        /*
+        for (const auto& modifier : attribute.modifiers) {
+            // Modifier UUID (UUID)
+            packet.insert(packet.end(), modifier.uuid.begin(), modifier.uuid.end());
+
+            // Modifier Amount (Double)
+            writeDouble(packet, modifier.amount);
+
+            // Modifier Operation (VarInt)
+            writeVarInt(packet, static_cast<int32_t>(modifier.operation));
+        }
+        */
+    }
+
+    sendPacket(client, packet);
+}
+
+void sendPlayerAbilities(ClientConnection& client, const uint8_t flags, const float flyingSpeed, const float fovModifier) {
+    std::vector<uint8_t> packet;
+    writeByte(packet, PLAYER_ABILITIES);
+
+    // Flags (Unsigned Byte)
+    writeByte(packet, flags);
+
+    // Flying Speed (Float)
+    writeFloat(packet, flyingSpeed);
+
+    // Walking Speed (Float)
+    writeFloat(packet, fovModifier);
 
     sendPacket(client, packet);
 }

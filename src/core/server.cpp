@@ -229,6 +229,19 @@ void tickingSystem() {
     }
 }
 
+void startMiningScheduler() {
+    miningRunning = true;
+    miningThread = std::thread(miningScheduler, std::ref(globalPlayers), std::ref(miningRunning));
+}
+
+void stopMiningScheduler() {
+    miningRunning = false;
+    if (miningThread.joinable()) {
+        miningThread.join();
+    }
+}
+
+
 void runServer() {
     auto startTime = std::chrono::system_clock::now();
 
@@ -328,6 +341,8 @@ void runServer() {
         }
     }
 
+    startMiningScheduler();
+
     // Start the console input thread
     std::thread consoleThread([&]() {
         std::string input;
@@ -358,6 +373,8 @@ void runServer() {
 
         std::thread(handleClient, clientSock).detach();
     }
+
+    stopMiningScheduler();
 
     if (serverConfig.enableRcon) {
         rconServer->stop();

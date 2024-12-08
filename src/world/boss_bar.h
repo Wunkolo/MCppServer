@@ -1,7 +1,3 @@
-//
-// Created by noah1 on 02.12.2024.
-//
-
 #ifndef BOSS_BAR_H
 #define BOSS_BAR_H
 #include <array>
@@ -41,14 +37,14 @@ public:
     [[nodiscard]] uint8_t getFlags() const;
     [[nodiscard]] bool isVisible() const;
     bool hasPlayer(const std::string& playerName) const;
-    std::vector<Player*>& getPlayers();
+    std::vector<std::shared_ptr<Player>>& getPlayers();
     int32_t getPlayerCount() const;
     int32_t getOnlinePlayerCount() const;
     std::string getPlayerList() const;
     std::string getOnlinePlayerList() const;
 
 private:
-    std::vector<Player*> players;
+    std::vector<std::shared_ptr<Player>> players;
     std::array<uint8_t, 16> uuid{};
     bool visible{true};
     std::string id;

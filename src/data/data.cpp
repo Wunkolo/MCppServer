@@ -60,6 +60,18 @@ std::vector<uint16_t> getBlockDrops(nlohmann::basic_json<>::const_reference valu
     return drops;
 }
 
+std::vector<uint16_t> getHarvestTools(nlohmann::basic_json<>::const_reference value) {
+    std::vector<uint16_t> harvestTools;
+    if (value.is_object()) {
+        for (const auto& [harvestTool, mineable] : value.items()) {
+            harvestTools.push_back(stoi(harvestTool));
+        }
+    } else {
+        logMessage("Invalid 'harvestTools' entry in block data", LOG_ERROR);
+    }
+    return harvestTools;
+}
+
 std::unordered_map<std::string, BlockData> loadBlocks(const std::string& filePath) {
     std::unordered_map<std::string, BlockData> blockMap;
     std::ifstream file(filePath);
@@ -93,6 +105,10 @@ std::unordered_map<std::string, BlockData> loadBlocks(const std::string& filePat
             blockData.defaultState = block.value("defaultState", 0);
             blockData.minStateId = block.value("minStateId", 0);
             blockData.maxStateId = block.value("maxStateId", 0);
+            // Check if harvestTools exists
+            if (block.contains("harvestTools")) {
+                blockData.harvestTools = getHarvestTools(block["harvestTools"]);
+            }
             blockData.boundingBox = block.value("boundingBox", "block");
             blockData.drops = getBlockDrops(block["drops"]);
             blockData.states = getBlockStates(block["states"]);

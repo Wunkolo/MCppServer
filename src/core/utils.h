@@ -86,6 +86,12 @@ struct ArrayEqual {
     }
 };
 
+struct DiggingInfo {
+    bool canHarvest;
+    double diggingTime; // in seconds
+    double speed;
+};
+
 std::vector<uint8_t> readFile(const std::string& filename);
 std::string base64Encode(const std::vector<uint8_t>& data);
 std::string getDirectoryFromPath(const std::string& filepath);
@@ -110,7 +116,8 @@ std::string getClientIPAddress(const ClientConnection& client);
 std::string generateServerID();
 nbt::tag_compound createTextComponent(const std::string& text, const std::string& color = "white");
 std::vector<uint8_t> base64Decode(const std::string &encoded);
-Player *getPlayer(const std::string &username);
+
+std::shared_ptr<Player> getPlayer(const std::string &username);
 std::string capitalizeFirstLetter(const std::string& str);
 Gamemode stringToGamemode(const std::string& gamemode);
 std::string gamemodeToString(Gamemode gamemode);
@@ -129,5 +136,6 @@ std::vector<std::shared_ptr<Item>> getItemsFromBlock(int16_t blockstate);
 double getRandomDouble(double min, double max);
 bool checkCollision(Item& item, BoundingBox& collidedBlockBox, Axis axis);
 double calculateFinalVelocity(double initialVelocity, double drag, double acceleration, int ticksPassed, DragApplicationOrder order);
+DiggingInfo calculateDiggingSpeed(int16_t blockstate, const std::shared_ptr<Player>& player);
 
 #endif // UTILS_H

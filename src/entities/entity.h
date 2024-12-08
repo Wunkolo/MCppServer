@@ -18,12 +18,44 @@ struct Position {
     double x;
     double y;
     double z;
+
+    Position() : x(0), y(0), z(0) {}
+    Position(int32_t x, int32_t y, int32_t z) : x(x), y(y), z(z) {}
+    Position(double x, double y, double z) : x(x), y(y), z(z) {}
+
+    bool operator==(const Position& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
 };
+
+// Hash function for Position to use in unordered_map
+struct PositionHash {
+    std::size_t operator()(const Position& pos) const {
+        return std::hash<int32_t>()(pos.x) ^ std::hash<int32_t>()(pos.y) ^ std::hash<int32_t>()(pos.z);
+    }
+};
+
 
 struct Rotation {
     float yaw;
     float pitch;
     float headYaw;
+};
+
+struct MiningProgress {
+    std::chrono::steady_clock::time_point startTime;
+    double totalTime; // in seconds
+    int8_t currentStage;
+    Position blockPos;
+    int32_t sequence;
+
+    MiningProgress() : totalTime(0), currentStage(0), sequence(0) {}
+};
+
+struct Attribute {
+    int32_t id;
+    double value;
+    // TODO: Add modifiers
 };
 
 class Entity {

@@ -1,7 +1,3 @@
-//
-// Created by noah1 on 02.12.2024.
-//
-
 #include "boss_bar.h"
 
 #include <utility>
@@ -65,7 +61,7 @@ void Bossbar::setVisible(bool visible) {
 }
 
 void Bossbar::addPlayer(const std::string &playerName) {
-    Player* player = getPlayer(playerName);
+    std::shared_ptr<Player> player = getPlayer(playerName);
     players.push_back(player);
     sendBossbar(*this, 0);
 }
@@ -134,7 +130,7 @@ bool Bossbar::hasPlayer(const std::string &playerName) const {
     return false;
 }
 
-std::vector<Player*>& Bossbar::getPlayers() {
+std::vector<std::shared_ptr<Player>>& Bossbar::getPlayers() {
     return players;
 }
 

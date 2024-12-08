@@ -49,8 +49,8 @@ add_executable(MCppServer src/main.cpp
         src/entities/slot_data.h
         src/entities/equipment.cpp
         src/entities/equipment.h
-        src/entities/inventory.cpp
-        src/entities/inventory.h
+        src/inventories/inventory.cpp
+        src/inventories/inventory.h
         src/world/block_states.cpp
         src/world/block_states.h
         src/encryption/rsa_key.cpp
@@ -86,6 +86,13 @@ add_executable(MCppServer src/main.cpp
         src/entities/entity_factory.h
         src/data/crafting_recipes.cpp
         src/data/crafting_recipes.h
+        src/inventories/crafting_inventory.cpp
+        src/inventories/crafting_inventory.h
+        src/inventories/player_inventory.cpp
+        src/inventories/player_inventory.h
+        src/inventories/crafting_table_inventory.cpp
+        src/inventories/crafting_table_inventory.h
+        src/inventories/external_inventory.h
 )
 
 # Include FetchContent module

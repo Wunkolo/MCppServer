@@ -23,6 +23,7 @@
 #include "entities/entity_factory.h"
 #include "entities/item_entity.h"
 #include "entities/slot_data.h"
+#include "inventories/crafting_table_inventory.h"
 #include "utils/translation.h"
 
 // TODO: Make sure EntityManager and connectedClients are thread-safe
@@ -31,25 +32,25 @@
 std::atomic<int> playerCount(0);
 
 // Function to disconnect client
-void disconnectClient(const Player& player, const std::string& reason, bool disconnectPacket) {
+void disconnectClient(const std::shared_ptr<Player>& player, const std::string& reason, bool disconnectPacket) {
     if (disconnectPacket) {
-        sendDisconnectionPacket(*player.client, reason);
-        logMessage("Player " + player.name + " disconnected. Reason: " + reason, LOG_INFO);
+        sendDisconnectionPacket(*player->client, reason);
+        logMessage("Player " + player->name + " disconnected. Reason: " + reason, LOG_INFO);
         // Close the socket
 #ifdef _WIN32
-        closesocket(player.client->socket);
+        closesocket(player->client->socket);
 #else
         close(player.client->socket);
 #endif
     }
-    player.client->connectionClosed = true;
+    player->client->connectionClosed = true;
     playersMutex.lock();
-    globalPlayersName.erase(player.name);
-    globalPlayers.erase(player.uuidString);
+    globalPlayersName.erase(player->name);
+    globalPlayers.erase(player->uuidString);
     playersMutex.unlock();
     --playerCount;
     connectedClientsMutex.lock();
-    connectedClients.erase(player.uuidString);
+    connectedClients.erase(player->uuidString);
     connectedClientsMutex.unlock();
 
     sendPlayerInfoRemove(player);
@@ -73,8 +74,8 @@ void disconnectClient(const Player& player, const std::string& reason, bool disc
         }
     }
 
-    sendTranslatedChatMessage("multiplayer.player.left", false, "yellow", nullptr, true, player.name);
-    entityManager.removeEntity(player.uuidString);
+    sendTranslatedChatMessage("multiplayer.player.left", false, "yellow", nullptr, true, player->name);
+    entityManager.removeEntity(player->uuidString);
 }
 
 void handleStatusRequest(ClientConnection& client) {
@@ -498,24 +499,14 @@ void spawnBlockDrops(int32_t x, int32_t y, int32_t z, int16_t blockState) {
     }
 }
 
-void handleFinishedDigging(ClientConnection& client, const std::shared_ptr<Player> & player, const std::tuple<int32_t, int32_t, int32_t> & blockPosition, Face face, size_t sequence) {
+void handleFinishedDigging(ClientConnection& client, const std::shared_ptr<Player> & player, const std::tuple<int32_t, int32_t, int32_t> & blockPosition, Block& block, const std::shared_ptr<Chunk>& chunk, Face face, size_t sequence) {
     int32_t x = std::get<0>(blockPosition);
     int32_t y = std::get<1>(blockPosition);
     int32_t z = std::get<2>(blockPosition);
     short oldBlockStateID = 0;
 
-    // Retrieve the chunk containing the block
-    const auto chunk = getChunkContainingBlock(x, y, z);
-    if (!chunk) {
-        logMessage("Chunk not found for block position (" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")", LOG_ERROR);
-        return;
-    }
-
     // Lock the chunk for thread safety
     std::lock_guard lock(chunk->mutex);
-
-    // Get the block within the chunk
-    Block block = chunk->getBlock(getLocalCoordinate(x), y, getLocalCoordinate(z));
 
     // If the block is already air, do nothing
     if (block.blockStateID == blocks["air"].defaultState) {
@@ -549,6 +540,10 @@ void handleFinishedDigging(ClientConnection& client, const std::shared_ptr<Playe
         }
     }
 
+    // Reset destroy stages for the block
+    Position blockPos = Position{ x, y, z };
+    sendBlockDestroyStage(player, blockPos, 10);
+
     // Send block drop items to the player (if not in creative mode)
     if (player->gameMode != 1) {
         spawnBlockDrops(x, y, z, oldBlockStateID);
@@ -563,6 +558,53 @@ void removePlayerFromAllChunks(const std::shared_ptr<Player> & player) {
     }
 }
 
+void miningScheduler(std::unordered_map<std::string, std::shared_ptr<Player>> &players, std::atomic<bool> &running) {
+    const int tickRate = 20; // 20 ticks per second
+    while (running) {
+        auto tickStart = std::chrono::steady_clock::now();
+
+        for (auto &player: players | std::views::values) {
+            std::lock_guard<std::mutex> lock(player->miningMutex);
+            for (auto it = player->currentMining.begin(); it != player->currentMining.end(); ) {
+                MiningProgress &progress = it->second;
+                double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - progress.startTime).count();
+
+                // Calculate the current stage based on elapsed time
+                int8_t newStage = static_cast<int8_t>((elapsed / progress.totalTime) * 10);
+                newStage = std::min(newStage, static_cast<int8_t>(9)); // Stages 0-9
+
+                if (newStage > progress.currentStage) {
+                    // Send the new destroy stage
+                    Position blockPos = progress.blockPos;
+                    sendBlockDestroyStage(player, blockPos, newStage);
+                    progress.currentStage = newStage;
+                }
+
+                if (elapsed >= progress.totalTime) {
+                    // Mining complete
+                    sendBlockDestroyStage(player, progress.blockPos, 10); // Final stage or block break
+
+                    // Handle block breaking logic
+                    // e.g., remove the block, drop items, etc.
+                    // You might need to call handleFinishedDigging here or similar
+
+                    it = player->currentMining.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        // Sleep until the next tick
+        auto tickEnd = std::chrono::steady_clock::now();
+        std::chrono::duration<double> tickDuration = tickEnd - tickStart;
+        double sleepTime = (1.0 / tickRate) - tickDuration.count();
+        if (sleepTime > 0) {
+            std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+        }
+    }
+}
+
 void handlePlayerActions(ClientConnection& client, const std::vector<uint8_t> & packetData, size_t index, const std::shared_ptr<Player> & player) {
     auto action = static_cast<PlayerAction>(parseVarInt(packetData, index));
     uint64_t position = parseLong(packetData, index);
@@ -573,17 +615,69 @@ void handlePlayerActions(ClientConnection& client, const std::vector<uint8_t> & 
     auto face = static_cast<Face>(parseByte(packetData, index));
     size_t sequence = parseVarInt(packetData, index);
 
+    const auto chunk = getChunkContainingBlock(x, y, z);
+    if (!chunk) {
+        logMessage("Chunk not found for block position (" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")", LOG_ERROR);
+        return;
+    }
+
+    Block block = chunk->getBlock(getLocalCoordinate(x), y, getLocalCoordinate(z));
+
     switch (action) {
         case STARTED_DIGGING: {
-            if(player->gameMode == 1 /*Creative Mode*/) { // TODO: Calculate mining speed as insta-mining in survival has the same effect
-                handleFinishedDigging(client, player, std::tuple(x, y, z), face, sequence);
+            DiggingInfo diggingInfo = calculateDiggingSpeed(block.blockStateID, player);
+            if(player->gameMode == CREATIVE || (diggingInfo.diggingTime == 0 && diggingInfo.canHarvest)) {
+                handleFinishedDigging(client, player, std::tuple(x, y, z), block, chunk, face, sequence);
+            } else if (diggingInfo.canHarvest) {
+                // Initiate mining with destroy stages
+                Position blockPos = Position{ x, y, z };
+                MiningProgress progress;
+                progress.startTime = std::chrono::steady_clock::now();
+                progress.totalTime = diggingInfo.diggingTime; // Total time in seconds
+                progress.currentStage = 0;
+                progress.blockPos = blockPos;
+                progress.sequence = sequence;
+
+                {
+                    std::lock_guard lock(player->miningMutex);
+                    player->currentMining[blockPos] = progress;
+                }
+
+                // Send initial destroy stage
+                sendBlockDestroyStage(player, blockPos, progress.currentStage);
+
+                // Note: The miningScheduler thread will handle subsequent stages
             }
             break;
         }
-        case CANCELLED_DIGGING:
+        case CANCELLED_DIGGING: {
+            Position blockPos = Position{ x, y, z };
+            {
+                std::lock_guard lock(player->miningMutex);
+                auto it = player->currentMining.find(blockPos);
+                if (it != player->currentMining.end()) {
+                    // Reset the destroy stage
+                    sendBlockDestroyStage(player, blockPos, 0);
+                    player->currentMining.erase(it);
+                }
+            }
             break;
+        }
         case FINISHED_DIGGING: {
-            handleFinishedDigging(client, player, std::tuple(x, y, z), face, sequence);
+            Position blockPos = Position{ x, y, z };
+            bool shouldHandle = false;
+            {
+                std::lock_guard<std::mutex> lock(player->miningMutex);
+                auto it = player->currentMining.find(blockPos);
+                if (it != player->currentMining.end()) {
+                    shouldHandle = true;
+                    player->currentMining.erase(it);
+                }
+            }
+            if (shouldHandle) {
+                //handleFinishedDigging(client, player, std::make_tuple(x, y, z), block, chunk, face, sequence);
+            }
+            handleFinishedDigging(client, player, std::make_tuple(x, y, z), block, chunk, face, sequence);
             break;
         }
         case DROP_ITEM_STACK:
@@ -685,7 +779,7 @@ void handleSetCreativeModeSlot(SocketType socket, const std::vector<uint8_t> & p
         sendEquipmentPacket(player, player->entityID, bootsSlot);
     }
 
-    player->inventory.slots[slot] = slotDataParsed;
+    player->inventory->slots[slot] = slotDataParsed;
     SendSetContainerSlot(*player->client, 0, 0, slot, slotDataParsed);
 }
 
@@ -693,17 +787,17 @@ void handleSetHeldItem(SocketType socket, const std::vector<uint8_t> & packetDat
     short slot = parseShort(packetData, index);
     player->activeSlot = slot;
 
-    if(player->inventory.slots.contains(slot + 36)) {
+    if(player->inventory->slots.contains(slot + 36)) {
         EquipmentSlot mainHandSlot;
         mainHandSlot.slotId = 0;
-        mainHandSlot.slotData = player->inventory.slots.at(slot + 36);
+        mainHandSlot.slotData = player->inventory->slots.at(slot + 36);
         player->equipment.mainHand = mainHandSlot;
         sendEquipmentPacket(player, player->entityID, mainHandSlot);
     } else {
-        player->inventory.slots[slot + 36] = SlotData();
+        player->inventory->slots[slot + 36] = SlotData();
         EquipmentSlot mainHandSlot;
         mainHandSlot.slotId = 0;
-        mainHandSlot.slotData = player->inventory.slots.at(slot + 36);
+        mainHandSlot.slotData = player->inventory->slots.at(slot + 36);
         player->equipment.mainHand = mainHandSlot;
         sendEquipmentPacket(player, player->entityID, mainHandSlot);
     }
@@ -753,6 +847,39 @@ bool isBlockReplaceable(Block block) {
     return false;
 }
 
+void openCraftingTable(const std::shared_ptr<Player> & player) {
+    player->windowID++;
+    player->windowID %= 100;
+    if (player->windowID == 0) {
+        player->windowID = 1;
+    }
+    auto craftingTableInv = std::make_shared<CraftingTableInventory>(player->windowID);
+    craftingTableInv->copyPlayerInventory(*player->inventory);
+    // Link this inventory to the player
+    player->currentInventory = craftingTableInv;
+    craftingTableInv->client = player->client;
+    sendOpenScreen(*player->client, player->windowID, 12 /* Crafting Table */, "§0Crafting");
+}
+
+bool interact(const std::shared_ptr<Player> & player, const Position & blockPos, Face face, const Position & cursorPos, const SlotData & heldItem) {
+    // Retrieve the chunk containing the block
+    const auto chunk = getChunkContainingBlock(static_cast<int32_t>(blockPos.x), static_cast<int32_t>(blockPos.y), static_cast<int32_t>(blockPos.z));
+    if (!chunk) {
+        logMessage("Chunk not found for block position (" + std::to_string(blockPos.x) + ", " + std::to_string(blockPos.y) + ", " + std::to_string(blockPos.z) + ")", LOG_ERROR);
+        return false;
+    }
+    // Get the block within the chunk
+    uint16_t blockState = chunk->getBlock(getLocalCoordinate(static_cast<int32_t>(blockPos.x)), static_cast<int32_t>(blockPos.y), getLocalCoordinate(static_cast<int32_t>(blockPos.z))).blockStateID;
+
+    if (blockState == blocks["crafting_table"].defaultState) {
+        // Open crafting table
+        openCraftingTable(player);
+        return true;
+    }
+
+    return false;
+}
+
 void handleUseItemOn(ClientConnection& client, const std::vector<uint8_t> & packetData, size_t index, const std::shared_ptr<Player> & player) {
     // Hand (VarInt)
     size_t hand = parseVarInt(packetData, index);
@@ -781,7 +908,14 @@ void handleUseItemOn(ClientConnection& client, const std::vector<uint8_t> & pack
 
     // 2. Determine the Block to Place
     int selectedSlot = player->activeSlot + 36;
-    SlotData heldItem = player->inventory.slots[selectedSlot];
+    SlotData heldItem = player->inventory->slots[selectedSlot];
+
+    if (!player->isSneaking()) {
+        if (interact(player, blockPosition, face, cursorPosition, heldItem)) {
+            return;
+        }
+    }
+
 
     if (heldItem.itemId == items["air"].id) {
         // Player is holding 'air', nothing to place
@@ -822,7 +956,6 @@ void handleUseItemOn(ClientConnection& client, const std::vector<uint8_t> & pack
     }
 
     // 6. Place the Block on the Server
-
     // 6.a. Assign Block States Based on Placement Context
     BlockData blockData = blocks[itemIDs[heldItem.itemId.value()].name];
     std::vector<BlockState> currentBlockState;
@@ -840,7 +973,12 @@ void handleUseItemOn(ClientConnection& client, const std::vector<uint8_t> & pack
     // 8. Update the Player's Inventory
     // In Creative Mode, items are not consumed. If in Survival, decrease item count
     if (player->gameMode != 1) {
-        //decreaseItemCount(player->inventory[selectedSlot], 1); // TODO: Implement
+        if (player->inventory->getSlotData(selectedSlot).itemCount > 0) {
+            player->inventory->getSlotData(selectedSlot).itemCount--;
+            if (player->inventory->getSlotData(selectedSlot).itemCount == 0) {
+                player->inventory->clearSlot(selectedSlot);
+            }
+        }
     }
 }
 
@@ -914,7 +1052,7 @@ void handlePlayerSession(ClientConnection & client, const std::vector<uint8_t> &
         // Parse the public key and store it
         player->publicKey = parsePublicKey(player->sessionKey.pubKey);
         if (!player->publicKey) {
-            disconnectClient(*player, "Invalid public key.", true);
+            disconnectClient(player, "Invalid public key.", true);
             return;
         }
 
@@ -922,7 +1060,7 @@ void handlePlayerSession(ClientConnection & client, const std::vector<uint8_t> &
         std::vector<std::string> mojangPublicKeyPEMs = fetchMojangPublicKeys();
         if (mojangPublicKeyPEMs.empty()) {
             // Handle error
-            disconnectClient(*player, "Unable to fetch Mojang public keys.", true);
+            disconnectClient(player, "Unable to fetch Mojang public keys.", true);
             return;
         }
 
@@ -936,18 +1074,18 @@ void handlePlayerSession(ClientConnection & client, const std::vector<uint8_t> &
 
         // Verify the player's session key
         if (mojangPublicKeys.empty()) {
-            disconnectClient(*player, "Failed to load Mojang public keys.", true);
+            disconnectClient(player, "Failed to load Mojang public keys.", true);
             return;
         }
 
         // TODO: Fix key verification
         if (!verifySessionKeySignature(player, player->sessionKey.expiresAt, player->sessionKey.pubKey, player->sessionKey.keySig, mojangPublicKeys)) {
             logMessage("Player: " + player->name + " failed to verify session key signature.", LOG_ERROR);
-            disconnectClient(*player, "Invalid session key signature.", true);
+            disconnectClient(player, "Invalid session key signature.", true);
             return;
         }
 
-        std::vector<Player> playerInfo = {*player};
+        std::vector<std::shared_ptr<Player>> playerInfo = {player};
         sendPlayerInfoUpdate(client, playerInfo, 0x02);
     }
 }
@@ -1071,7 +1209,7 @@ void handleChatMessage(const ClientConnection & client, const std::vector<uint8_
 
 void handleCommand(ClientConnection & client, const std::shared_ptr<Player>& player, const std::string & command) {
     auto chatOutput = [player](const std::string& message, bool error, const std::vector<std::string>& args) {
-        std::vector<Player> playerInfo = {*player};
+        std::vector<std::shared_ptr<Player>> playerInfo = {player};
         sendTranslatedChatMessage(message, false, error ? "red" : "white", &playerInfo, false, &args);
     };
     CommandParser parser(globalCommandGraph, chatOutput);
@@ -1193,7 +1331,20 @@ void handleClickContainer(const ClientConnection & client, const std::vector<uin
         changedSlotsFromClient.emplace_back(slotIndex, slotData);
     }
     SlotData carriedItem = parseSlotData(packet, index);
-    player->inventory.HandleInventoryClick(windowID, stateID, slot, button, mode, changedSlotsFromClient, carriedItem);
+    player->currentInventory->HandleInventoryClick(windowID, stateID, slot, button, mode, changedSlotsFromClient, carriedItem);
+}
+
+void handleCloseContainer(const ClientConnection & client, const std::vector<uint8_t> & packet, size_t index, const std::shared_ptr<Player> & player) {
+    uint8_t windowID = parseByte(packet, index);
+    if (windowID != 0 && windowID == player->windowID) {
+        // check if shared ptr inherits from specific class
+        if (std::shared_ptr<ExternalInventory> inventory = std::dynamic_pointer_cast<ExternalInventory>(
+            player->currentInventory)) {
+            inventory->copyToPlayerInventory(*player->inventory);
+            logMessage("Player " + player->name + " closed container with window ID: " + std::to_string(windowID), LOG_DEBUG);
+        }
+        player->currentInventory = player->inventory;
+    }
 }
 
 void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& packetData, const std::shared_ptr<Player>& player, const RegistryManager& registryManager) {
@@ -1222,6 +1373,9 @@ void handleClientPacket(ClientConnection& client, const std::vector<uint8_t>& pa
             break;
         case CLICK_CONTAINER: // Click container slot
             handleClickContainer(client, packetData, index, player);
+            break;
+        case CLOSE_CONTAINER: // Close container
+            handleCloseContainer(client, packetData, index, player);
             break;
         case SERVERBOUND_KEEP_ALIVE: // Keep Alive
             handleKeepAlive(client, packetData, index, player);
@@ -1297,11 +1451,11 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
     }
 
     if (!entitiesToInform.empty()) {
-        std::vector<Player> playersToAdd;
+        std::vector<std::shared_ptr<Player>> playersToAdd;
         for (const auto& entity : entitiesToInform) {
             if (entity->type == EntityType::Player) {
                 if (std::shared_ptr<Player> player = std::dynamic_pointer_cast<Player>(entity)) {
-                    playersToAdd.push_back(*player);
+                    playersToAdd.push_back(player);
                 }
             }
         }
@@ -1309,7 +1463,7 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
     }
 
     // Send Player Info Update to all existing clients about the new player
-    std::vector<Player> newPlayerInfo = {*newPlayer};
+    std::vector<std::shared_ptr<Player>> newPlayerInfo = {newPlayer};
     {
         std::lock_guard lock(connectedClientsMutex);
         for (auto& [uuid, existingClient] : connectedClients) {
@@ -1456,6 +1610,10 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
             );
         }
 
+        for (const auto& chunk : chunksToSend) {
+            player->loadedChunks.insert({chunk->chunkX, chunk->chunkZ});
+        }
+
         // Wait for all sends to complete
         for (auto& future : sendFutures) {
             future.get();
@@ -1489,7 +1647,7 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
         while (true) {
             std::vector<uint8_t> packetData;
             if (!readPacket(client, packetData)) {
-                disconnectClient(*newPlayer, "Player disconnected", false);
+                disconnectClient(newPlayer, "Player disconnected", false);
                 break;
             }
 
@@ -1499,7 +1657,7 @@ void handlePlayState(ClientConnection& client, const std::shared_ptr<Player>& ne
             std::this_thread::sleep_for(std::chrono::nanoseconds(100)); // Avoid high CPU usage
         }
     } catch (const std::exception& e) {
-        disconnectClient(*newPlayer, "Player disconnected", false);
+        disconnectClient(newPlayer, "Player disconnected", false);
         logMessage("Client disconnected with error: " + std::string(e.what()), LOG_ERROR);
     }
 

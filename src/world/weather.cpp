@@ -1,7 +1,3 @@
-//
-// Created by noah1 on 03.12.2024.
-//
-
 #include "weather.h"
 
 #include "networking/clientbound_packets.h"

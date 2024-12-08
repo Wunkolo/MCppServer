@@ -17,7 +17,7 @@ void buildAllCommands() {
             .argument("player", 7, true, true)
                 .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                     const std::string& targetPlayer = args[0];
-                    Player* target = getPlayer(targetPlayer);
+                    std::shared_ptr<Player> target = getPlayer(targetPlayer);
                     sendEntityEventPacket(*target->client, target->entityID, 24 + serverConfig.opPermissionLevel); // Make the player an operator
                     sendOutput("commands.op.success", false, {target->name});
                 })
@@ -35,7 +35,7 @@ void buildAllCommands() {
             .argument("player", 7, true, true)
                 .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                     const std::string& targetPlayer = args[0];
-                    Player* target = getPlayer(targetPlayer);
+                    std::shared_ptr<Player> target = getPlayer(targetPlayer);
                     sendEntityEventPacket(*target->client, target->entityID, 24); // Remove operator status
                     sendOutput("commands.deop.success", false, {target->name});
                 })
@@ -50,10 +50,10 @@ void buildAllCommands() {
                 const std::string& mode = args[0];
                 if (player) {
                     std::string targetPlayer = player->name; // Self
-                    Player* target = getPlayer(targetPlayer);
+                    std::shared_ptr<Player> target = getPlayer(targetPlayer);
                     if (target && stringToGamemode(mode) != target->gameMode) {
                         target->gameMode = stringToGamemode(mode);
-                        sendChangeGamemode(*target->client, *target, target->gameMode);
+                        sendChangeGamemode(*target->client, target, target->gameMode);
                         sendOutput( "commands.gamemode.success.self", false, {"translate.gameMode." + gamemodeToString(target->gameMode)});
                     }
                 }
@@ -62,19 +62,19 @@ void buildAllCommands() {
                 .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                     const std::string& mode = args[0];
                     const std::string& targetPlayer = args[1];
-                    Player* target = getPlayer(targetPlayer);
+                    std::shared_ptr<Player> target = getPlayer(targetPlayer);
                     if (player && target->uuid == player->uuid) {
                         if (stringToGamemode(mode) != target->gameMode) {
                             target->gameMode = stringToGamemode(mode);
-                            sendChangeGamemode(*target->client, *target, target->gameMode);
+                            sendChangeGamemode(*target->client, target, target->gameMode);
                             sendOutput( "commands.gamemode.success.self", false, {"translate.gameMode." + gamemodeToString(target->gameMode)});
                         }
                     } else {
                         if (stringToGamemode(mode) != target->gameMode) {
                             target->gameMode = stringToGamemode(mode);
-                            sendChangeGamemode(*target->client, *target, target->gameMode);
+                            sendChangeGamemode(*target->client, target, target->gameMode);
                             sendOutput("commands.gamemode.success.other", false, {target->name, "translate.gameMode." + gamemodeToString(target->gameMode)});
-                            std::vector<Player> players = {*target};
+                            std::vector<std::shared_ptr<Player>> players = {target};
                             sendTranslatedChatMessage("gameMode.changed", false, "white", &players, false, "translate.gameMode." + gamemodeToString(target->gameMode));
                         }
                     }
@@ -900,7 +900,7 @@ void buildAllCommands() {
         .literal("inventory", true, true)
             .handler([](const Player* player, const std::vector<std::string>& args, const std::function<void(const std::string&, bool, const std::vector<std::string>& args)> &sendOutput) {
                     std::string inventory;
-                    for (auto& slot : player->inventory.slots) {
+                    for (auto& slot : player->inventory->slots) {
                         if (slot.second.itemId.value() != 0) {
                             inventory += "Slot " + std::to_string(slot.first) + ": ID: " + std::to_string(slot.second.itemId.value()) + ", Count: " + std::to_string(slot.second.itemCount) + "\n";
                         }

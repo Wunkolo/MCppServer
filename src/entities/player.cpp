@@ -12,8 +12,10 @@ bool Player::operator==(const std::shared_ptr<Player> &shared) const {
 Player::Player(const std::array<uint8_t, 16>& uuidBytes, const std::string& playerName, EntityType entityType) : Entity(
         uuidBytes, entityType, 0.09, 0.02, {-0.3, 0, -0.3, 0.3, 1.8, 0.3}), uuid(uuidBytes), name(playerName),
     gameMode(), listed(false), ping(0),
-    currentChunkX(0), currentChunkZ(0), flags(0), client(nullptr), viewDistance(0), inventory(46), sessionKey() {
+    currentChunkX(0), currentChunkZ(0), flags(0), client(nullptr), viewDistance(0), sessionKey() {
     hasHeadRotation = true;
+    inventory = std::make_shared<PlayerInventory>();
+    currentInventory = inventory;
 }
 
 void Player::serializeAdditionalData(std::vector<uint8_t>& packetData) const {
@@ -41,9 +43,9 @@ int8_t Player::canItemBeAddedToInventory(uint16_t id, uint8_t count) const {
 
     // Iterate through hotbar slots (36-44)
     for(int slot = 36; slot <= 44; ++slot) {
-        if (inventory.slots.contains(slot)) {
-            if (inventory.slots.at(slot).itemId == id && inventory.slots.at(slot).itemCount < maxStack) {
-                uint8_t availableSpace = maxStack - inventory.slots.at(slot).itemCount;
+        if (inventory->slots.contains(slot)) {
+            if (inventory->slots.at(slot).itemId == id && inventory->slots.at(slot).itemCount < maxStack) {
+                uint8_t availableSpace = maxStack - inventory->slots.at(slot).itemCount;
                 remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
                 if (remaining == 0) return count;
             }
@@ -51,9 +53,9 @@ int8_t Player::canItemBeAddedToInventory(uint16_t id, uint8_t count) const {
     }
     // Iterate through main inventory slots (9-35)
     for(int slot = 9; slot <= 35; ++slot) {
-        if (inventory.slots.contains(slot)) {
-            if (inventory.slots.at(slot).itemId == id && inventory.slots.at(slot).itemCount < maxStack) {
-                uint8_t availableSpace = maxStack - inventory.slots.at(slot).itemCount;
+        if (inventory->slots.contains(slot)) {
+            if (inventory->slots.at(slot).itemId == id && inventory->slots.at(slot).itemCount < maxStack) {
+                uint8_t availableSpace = maxStack - inventory->slots.at(slot).itemCount;
                 remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
                 if (remaining == 0) return count;
             }
@@ -62,13 +64,13 @@ int8_t Player::canItemBeAddedToInventory(uint16_t id, uint8_t count) const {
 
     // After trying to add to existing stacks, check for empty slots in hotbar
     for(int slot = 36; slot <= 44; ++slot) {
-        if (!inventory.slots.contains(slot)) {
+        if (!inventory->slots.contains(slot)) {
             uint8_t availableSpace = maxStack;
             remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
             if (remaining == 0) return count;
         } else {
-            if (inventory.slots.at(slot).itemId == 0) {
-                uint8_t availableSpace = maxStack - inventory.slots.at(slot).itemCount;
+            if (inventory->slots.at(slot).itemId == 0) {
+                uint8_t availableSpace = maxStack - inventory->slots.at(slot).itemCount;
                 remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
                 if (remaining == 0) return count;
             }
@@ -77,13 +79,13 @@ int8_t Player::canItemBeAddedToInventory(uint16_t id, uint8_t count) const {
 
     // After trying to add to existing stacks, check for empty slots in main inventory
     for(int slot = 9; slot <= 35; ++slot) {
-        if (!inventory.slots.contains(slot)) {
+        if (!inventory->slots.contains(slot)) {
             uint8_t availableSpace = maxStack;
             remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
             if (remaining == 0) return count;
         } else {
-            if (inventory.slots.at(slot).itemId == 0) {
-                uint8_t availableSpace = maxStack - inventory.slots.at(slot).itemCount;
+            if (inventory->slots.at(slot).itemId == 0) {
+                uint8_t availableSpace = maxStack - inventory->slots.at(slot).itemCount;
                 remaining = (remaining > availableSpace) ? (remaining - availableSpace) : 0;
                 if (remaining == 0) return count;
             }
@@ -102,8 +104,8 @@ void Player::addItemToInventory(uint16_t id, uint8_t count) {
 
     // First, try to add to existing stacks in hotbar
     for(int slot = 36; slot <= 44; ++slot) {
-        if (inventory.slots.contains(slot)) {
-            SlotData& slotData = inventory.slots.at(slot);
+        if (inventory->slots.contains(slot)) {
+            SlotData& slotData = inventory->slots.at(slot);
 
             if(slotData.itemId == id && slotData.itemCount < maxStack) {
                 uint8_t availableSpace = maxStack - slotData.itemCount;
@@ -119,8 +121,8 @@ void Player::addItemToInventory(uint16_t id, uint8_t count) {
 
     // Next, add to existing stacks in main inventory
     for(int slot = 9; slot <= 35; ++slot) {
-        if (inventory.slots.contains(slot)) {
-            SlotData& slotData = inventory.slots.at(slot);
+        if (inventory->slots.contains(slot)) {
+            SlotData& slotData = inventory->slots.at(slot);
 
             if(slotData.itemId == id && slotData.itemCount < maxStack) {
                 uint8_t availableSpace = maxStack - slotData.itemCount;
@@ -136,19 +138,19 @@ void Player::addItemToInventory(uint16_t id, uint8_t count) {
 
     // Next, add to empty slots in hotbar
     for(int slot = 36; slot <= 44; ++slot) {
-        if (!inventory.slots.contains(slot)) {
+        if (!inventory->slots.contains(slot)) {
             SlotData slotData;
             uint8_t toAdd = std::min(maxStack, remaining);
             slotData.itemId = id;
             slotData.itemCount = toAdd;
             remaining -= toAdd;
-            inventory.slots[slot] = slotData;
+            inventory->slots[slot] = slotData;
             SendSetContainerSlot(*client, 0, 0, slot, slotData);
 
             if(remaining == 0) return;
         } else {
-            SlotData& slotData = inventory.slots.at(slot);
-            if (inventory.slots.at(slot).itemId == 0) {
+            SlotData& slotData = inventory->slots.at(slot);
+            if (inventory->slots.at(slot).itemId == 0) {
                 uint8_t availableSpace = maxStack - slotData.itemCount;
                 uint8_t toAdd = std::min(availableSpace, remaining);
                 slotData.itemCount += toAdd;
@@ -163,19 +165,19 @@ void Player::addItemToInventory(uint16_t id, uint8_t count) {
 
     // Finally, add to empty slots in main inventory
     for(int slot = 9; slot <= 35; ++slot) {
-        if (!inventory.slots.contains(slot)) {
+        if (!inventory->slots.contains(slot)) {
             SlotData slotData;
             uint8_t toAdd = std::min(maxStack, remaining);
             slotData.itemId = id;
             slotData.itemCount = toAdd;
             remaining -= toAdd;
-            inventory.slots[slot] = slotData;
+            inventory->slots[slot] = slotData;
             SendSetContainerSlot(*client, 0, 0, slot, slotData);
 
             if(remaining == 0) return;
         } else {
-            SlotData& slotData = inventory.slots.at(slot);
-            if (inventory.slots.at(slot).itemId == 0) {
+            SlotData& slotData = inventory->slots.at(slot);
+            if (inventory->slots.at(slot).itemId == 0) {
                 uint8_t availableSpace = maxStack - slotData.itemCount;
                 uint8_t toAdd = std::min(availableSpace, remaining);
                 slotData.itemCount += toAdd;

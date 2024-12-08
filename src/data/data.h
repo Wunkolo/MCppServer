@@ -27,6 +27,7 @@ struct BlockData {
     int defaultState;
     int minStateId;
     int maxStateId;
+    std::vector<uint16_t> harvestTools;
     std::vector<BlockState> states;
     std::vector<uint16_t> drops;
     std::string boundingBox;

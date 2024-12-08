@@ -23,6 +23,7 @@
 #include "zlib.h"
 #include "entities/entity_factory.h"
 #include "entities/item_entity.h"
+#include "entities/player.h"
 #include "utils/translation.h"
 
 std::vector<uint8_t> readFile(const std::string& filename) {
@@ -556,9 +557,9 @@ nbt::tag_compound createTextComponent(const std::string& text, const std::string
     return textComponent;
 }
 
-Player *getPlayer(const std::string &username) {
+std::shared_ptr<Player> getPlayer(const std::string &username) {
     playersMutex.lock();
-    Player* player = globalPlayersName[username].get();
+    std::shared_ptr<Player> player = globalPlayersName[username];
     playersMutex.unlock();
     if (player == nullptr) {
         return nullptr;
@@ -1067,4 +1068,158 @@ double calculateFinalVelocity(double initialVelocity, double drag, double accele
     }
     // AfterAcceleration
     return (initialVelocity * dragFactor) - (acceleration * accelerationFactor * (1.0 - drag));
+}
+
+DiggingInfo calculateDiggingSpeed(int16_t blockstate, const std::shared_ptr<Player>& player) {
+    DiggingInfo info;
+    bool canHarvest = false;
+    double speedMultiplier = 1.0;
+
+    // Find the target block based on blockstate
+    const BlockData* targetBlock = nullptr;
+    for (const auto& blockPair : blocks) {
+        const BlockData& block = blockPair.second;
+        if (blockstate >= block.minStateId && blockstate <= block.maxStateId) {
+            targetBlock = &block;
+            break;
+        }
+    }
+
+    if (!targetBlock) {
+        // Block not found
+        return {false, -1.0, 0};
+    }
+
+    if (!targetBlock->diggable) {
+        // Block cannot be broken (e.g., Bedrock)
+        return {false, -1.0, 0};
+    }
+
+    // Check if the player's held tool is the best tool for the block
+    const int heldItemID = player->getHeldItemID();
+    bool isBestTool = false;
+    for (const auto& toolID : targetBlock->harvestTools) {
+        if (toolID == heldItemID) {
+            isBestTool = true;
+            canHarvest = true;
+            break;
+        }
+    }
+
+    // Initialize speedMultiplier based on whether the tool is best for the block
+    if (isBestTool) {
+        speedMultiplier = 1.0; // Will be multiplied by tool speed
+        // TODO: Apply Efficiency enchantment
+        /*
+        int efficiencyLevel = player->getEfficiencyLevel();
+        if (efficiencyLevel > 0 && isBestTool) {
+            speedMultiplier += static_cast<double>(efficiencyLevel * efficiencyLevel + 1);
+        }
+        */
+    } else {
+        // If the tool cannot harvest the block, set speedMultiplier based on canHarvest
+        speedMultiplier = 1.0;
+    }
+
+    // Determine the tool's speed multiplier
+    double toolSpeedMultiplier = 1.0;
+    std::string toolName = "";
+    if (heldItemID >= 0 && heldItemID < static_cast<int>(itemIDs.size())) {
+        toolName = itemIDs[heldItemID].name;
+    }
+
+    if (toolName.find("shears") != std::string::npos) {
+        // Special handling for shears
+        // TODO: Adjust toolSpeedMultiplier based on specific block types (e.g., wool, cobwebs)
+        toolSpeedMultiplier = 2.0; // Default for shears
+    }
+    else if (toolName.find("sword") != std::string::npos || toolName.find("mace") != std::string::npos) {
+        toolSpeedMultiplier = 1.5;
+    }
+    else if (toolName.find("wood") != std::string::npos) {
+        toolSpeedMultiplier = 2.0;
+    }
+    else if (toolName.find("stone") != std::string::npos) {
+        toolSpeedMultiplier = 4.0;
+    }
+    else if (toolName.find("iron") != std::string::npos) {
+        toolSpeedMultiplier = 6.0;
+    }
+    else if (toolName.find("diamond") != std::string::npos) {
+        toolSpeedMultiplier = 8.0;
+    }
+    else if (toolName.find("netherite") != std::string::npos) {
+        toolSpeedMultiplier = 9.0;
+    }
+    else if (toolName.find("gold") != std::string::npos) {
+        toolSpeedMultiplier = 12.0;
+    }
+    else {
+        toolSpeedMultiplier = 1.0; // No tool or unrecognized tool
+    }
+
+    if (isBestTool) {
+        speedMultiplier *= toolSpeedMultiplier;
+    }
+
+    // TODO: Apply Haste or Conduit Power
+    /*
+    int hasteLevel = player->getHasteLevel();
+    int conduitPowerLevel = player->getConduitPowerLevel();
+    if (hasteLevel > 0 || conduitPowerLevel > 0) {
+        int maxHasteConduit = std::max(hasteLevel, conduitPowerLevel);
+        speedMultiplier *= (0.2 * static_cast<double>(maxHasteConduit) + 1.0);
+    }
+    */
+
+    // TODO: Apply Mining Fatigue
+    /*
+    int miningFatigueLevel = player->getMiningFatigueLevel();
+    if (miningFatigueLevel > 0) {
+        // speedMultiplier *= 0.3 ^ min(level, 4)
+        int effectiveLevel = std::min(miningFatigueLevel, 4);
+        speedMultiplier *= std::pow(0.3, static_cast<double>(effectiveLevel));
+
+    }
+    */
+
+    // TODO: Apply underwater penalty
+    /*
+    if (player->isInWater() && !player->hasAquaAffinity()) {
+        speedMultiplier /= 5.0;
+    }
+    */
+
+    // Apply onGround penalty
+    if (!player->isOnGround()) {
+        speedMultiplier /= 5.0;
+    }
+
+    // Calculate damage
+    double damage = speedMultiplier / targetBlock->hardness;
+    if (canHarvest) {
+        damage /= 30.0;
+    } else {
+        damage /= 100.0;
+    }
+
+    // Instant breaking condition
+    if (damage > 1.0) {
+        return {canHarvest, 0.0}; // Instant break
+    }
+
+    // Calculate the number of ticks (round up)
+    double ticks = std::ceil(1.0 / damage);
+
+    // Convert ticks to seconds (20 ticks = 1 second)
+    double seconds = ticks / 20.0;
+
+    // Ensure the time is a multiple of 1/20th of a second
+    seconds = std::ceil(seconds * 20.0) / 20.0;
+
+    info.canHarvest = canHarvest;
+    info.diggingTime = seconds;
+    info.speed = speedMultiplier;
+
+    return info;
 }
